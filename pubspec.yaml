@@ -1,0 +1,59 @@
+name: car_wallpaper_live
+description: "Live car wallpapers."
+publish_to: 'none'
+
+version: 1.4.0+5
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_bloc: ^8.0.0
+
+  # Dependency injection
+  get_it: ^7.0.0
+
+  # Value equality
+  equatable: ^2.0.0
+
+  # Functional types
+  dartz: ^0.10.1
+
+  # HTTP client
+  http: ^1.2.0
+
+  # Image caching
+  cached_network_image: ^3.3.0
+
+  # Cache management
+  flutter_cache_manager: ^3.4.0
+
+  # Typography
+  google_fonts: ^6.2.0
+
+  # Local persistence
+  shared_preferences: ^2.2.0
+
+  # Live video
+  video_player: ^2.8.0
+
+  # File system paths
+  path_provider: ^2.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Lint rules
+  flutter_lints: ^6.0.0
+
+flutter:
+  # Material icons
+  uses-material-design: true

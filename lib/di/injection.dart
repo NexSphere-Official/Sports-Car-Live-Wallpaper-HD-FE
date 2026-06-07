@@ -1,0 +1,128 @@
+import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/data/repositories/flutter_cache_repository.dart';
+import '../core/data/repositories/http_wallpaper_repository.dart';
+import '../core/data/repositories/native_wallpaper_setter_repository.dart';
+import '../core/data/repositories/shared_prefs_favorites_repository.dart';
+import '../core/data/repositories/shared_prefs_settings_repository.dart';
+import '../core/domain/repositories/cache_repository.dart';
+import '../core/domain/repositories/favorites_repository.dart';
+import '../core/domain/repositories/settings_repository.dart';
+import '../core/domain/repositories/wallpaper_repository.dart';
+import '../core/domain/repositories/wallpaper_setter_repository.dart';
+import '../core/domain/stores/favorites/favorites_store.dart';
+import '../core/domain/stores/theme/theme_store.dart';
+import '../core/domain/use_cases/get_favorites_use_case.dart';
+import '../core/domain/use_cases/get_theme_mode_use_case.dart';
+import '../core/domain/use_cases/get_wallpapers_use_case.dart';
+import '../core/domain/use_cases/clear_cache_use_case.dart';
+import '../core/domain/use_cases/clear_favorites_use_case.dart';
+import '../core/domain/use_cases/set_theme_mode_use_case.dart';
+import '../core/domain/use_cases/set_wallpaper_use_case.dart';
+import '../core/domain/use_cases/toggle_favorite_use_case.dart';
+import '../features/favorites/favorites_cubit.dart';
+import '../features/favorites/favorites_initial_params.dart';
+import '../features/favorites/favorites_navigator.dart';
+import '../features/favorites/favorites_page.dart';
+import '../features/home/home_cubit.dart';
+import '../features/home/home_initial_params.dart';
+import '../features/home/home_navigator.dart';
+import '../features/home/home_page.dart';
+import '../features/settings/settings_cubit.dart';
+import '../features/settings/settings_initial_params.dart';
+import '../features/settings/settings_navigator.dart';
+import '../features/settings/settings_page.dart';
+import '../features/wallpaper_detail/wallpaper_detail_cubit.dart';
+import '../features/wallpaper_detail/wallpaper_detail_initial_params.dart';
+import '../features/wallpaper_detail/wallpaper_detail_navigator.dart';
+import '../features/wallpaper_detail/wallpaper_detail_page.dart';
+import '../navigation/app_navigator.dart';
+
+final getIt = GetIt.instance;
+
+Future<void> init() async {
+  // --- Infrastructure ---
+  final prefs = await SharedPreferences.getInstance();
+  getIt.registerSingleton<SharedPreferences>(prefs);
+  getIt.registerLazySingleton(() => http.Client());
+  getIt.registerLazySingleton(() => AppNavigator());
+
+  // --- Global Stores ---
+  getIt.registerLazySingleton(() => ThemeStore());
+  getIt.registerLazySingleton(() => FavoritesStore());
+
+  // --- Repositories ---
+  getIt.registerLazySingleton<WallpaperRepository>(
+    () => HttpWallpaperRepository(getIt()),
+  );
+  getIt.registerLazySingleton<FavoritesRepository>(
+    () => SharedPrefsFavoritesRepository(getIt()),
+  );
+  getIt.registerLazySingleton<SettingsRepository>(
+    () => SharedPrefsSettingsRepository(getIt()),
+  );
+  getIt.registerLazySingleton<WallpaperSetterRepository>(
+    () => NativeWallpaperSetterRepository(getIt()),
+  );
+  getIt.registerLazySingleton<CacheRepository>(() => FlutterCacheRepository());
+
+  // --- Use Cases ---
+  getIt.registerSingleton(GetWallpapersUseCase(getIt()));
+  getIt.registerSingleton(GetFavoritesUseCase(getIt(), getIt()));
+  getIt.registerSingleton(ToggleFavoriteUseCase(getIt(), getIt()));
+  getIt.registerSingleton(GetThemeModeUseCase(getIt(), getIt()));
+  getIt.registerSingleton(SetThemeModeUseCase(getIt(), getIt()));
+  getIt.registerSingleton(SetWallpaperUseCase(getIt()));
+  getIt.registerSingleton(ClearCacheUseCase(getIt()));
+  getIt.registerSingleton(ClearFavoritesUseCase(getIt(), getIt()));
+
+  // --- Feature: home ---
+  getIt.registerFactory(() => HomeNavigator(getIt()));
+  getIt.registerFactoryParam<HomeCubit, HomeInitialParams, void>(
+    (params, _) => HomeCubit(params, getIt(), getIt(), getIt(), getIt()),
+  );
+  getIt.registerFactoryParam<HomePage, HomeInitialParams, void>(
+    (params, _) => HomePage(cubit: getIt(param1: params)),
+  );
+
+  // --- Feature: wallpaper_detail ---
+  getIt.registerFactory(() => WallpaperDetailNavigator(getIt()));
+  getIt.registerFactoryParam<
+    WallpaperDetailCubit,
+    WallpaperDetailInitialParams,
+    void
+  >((params, _) => WallpaperDetailCubit(params, getIt(), getIt()));
+  getIt.registerFactoryParam<
+    WallpaperDetailPage,
+    WallpaperDetailInitialParams,
+    void
+  >((params, _) => WallpaperDetailPage(cubit: getIt(param1: params)));
+
+  // --- Feature: favorites ---
+  getIt.registerFactory(() => FavoritesNavigator(getIt()));
+  getIt.registerFactoryParam<FavoritesCubit, FavoritesInitialParams, void>(
+    (params, _) => FavoritesCubit(params, getIt(), getIt(), getIt(), getIt()),
+  );
+  getIt.registerFactoryParam<FavoritesPage, FavoritesInitialParams, void>(
+    (params, _) => FavoritesPage(cubit: getIt(param1: params)),
+  );
+
+  // --- Feature: settings ---
+  getIt.registerFactory(() => SettingsNavigator(getIt()));
+  getIt.registerFactoryParam<SettingsCubit, SettingsInitialParams, void>(
+    (params, _) => SettingsCubit(
+      params,
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+    ),
+  );
+  getIt.registerFactoryParam<SettingsPage, SettingsInitialParams, void>(
+    (params, _) => SettingsPage(cubit: getIt(param1: params)),
+  );
+}

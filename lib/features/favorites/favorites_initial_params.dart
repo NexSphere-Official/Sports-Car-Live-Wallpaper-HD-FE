@@ -1,0 +1,3 @@
+class FavoritesInitialParams {
+  const FavoritesInitialParams();
+}
