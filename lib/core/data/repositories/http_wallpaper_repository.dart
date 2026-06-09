@@ -11,18 +11,17 @@ import '../../domain/models/wallpaper.dart';
 import '../../domain/models/wallpaper_page.dart';
 import '../../domain/models/wallpaper_type.dart';
 import '../../domain/repositories/wallpaper_repository.dart';
-import '../../domain/stores/app_config/app_config_store.dart';
 
 class HttpWallpaperRepository implements WallpaperRepository {
-  HttpWallpaperRepository(this._client, this._appConfigStore);
+  HttpWallpaperRepository(this._client);
 
   final http.Client _client;
-  final AppConfigStore _appConfigStore;
 
   static const _timeout = Duration(seconds: 20);
 
   @override
   Future<Either<GetWallpapersFailure, WallpaperPage>> getWallpapers({
+    required String baseUrl,
     required WallpaperType type,
     int? limit,
     String? cursor,
@@ -33,6 +32,7 @@ class HttpWallpaperRepository implements WallpaperRepository {
     };
 
     return _request(
+      baseUrl: baseUrl,
       path: _feedPath(type),
       query: params,
       onData: (data) => WallpaperPageJson.fromJson(data).toDomain(),
@@ -40,10 +40,12 @@ class HttpWallpaperRepository implements WallpaperRepository {
   }
 
   @override
-  Future<Either<GetWallpapersFailure, Wallpaper>> getWallpaperById(
-    String id,
-  ) async {
+  Future<Either<GetWallpapersFailure, Wallpaper>> getWallpaperById({
+    required String baseUrl,
+    required String id,
+  }) async {
     return _request(
+      baseUrl: baseUrl,
       path: '/v1/wallpapers/$id',
       query: const {},
       onData: (data) {
@@ -56,11 +58,11 @@ class HttpWallpaperRepository implements WallpaperRepository {
   /// Performs a GET, unwraps the `{ success, data, error }` envelope, and maps
   /// failures into [GetWallpapersFailure]. Never throws.
   Future<Either<GetWallpapersFailure, T>> _request<T>({
+    required String baseUrl,
     required String path,
     required Map<String, String> query,
     required T Function(Map<String, dynamic> data) onData,
   }) async {
-    final baseUrl = _appConfigStore.apiBaseUrl;
     if (baseUrl.isEmpty) {
       return left(const GetWallpapersFailure.network('missing base url'));
     }

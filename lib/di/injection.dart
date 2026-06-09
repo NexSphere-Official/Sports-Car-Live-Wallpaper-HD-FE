@@ -76,7 +76,7 @@ Future<void> init() async {
     () => FirebaseRemoteConfigRepository(getIt()),
   );
   getIt.registerLazySingleton<WallpaperRepository>(
-    () => HttpWallpaperRepository(getIt(), getIt()),
+    () => HttpWallpaperRepository(getIt()),
   );
   getIt.registerLazySingleton<FavoritesRepository>(
     () => SharedPrefsFavoritesRepository(getIt()),
@@ -94,8 +94,8 @@ Future<void> init() async {
 
   // --- Use Cases ---
   getIt.registerSingleton(GetAppConfigUseCase(getIt(), getIt()));
-  getIt.registerSingleton(GetWallpapersUseCase(getIt()));
-  getIt.registerSingleton(GetWallpaperUseCase(getIt()));
+  getIt.registerSingleton(GetWallpapersUseCase(getIt(), getIt()));
+  getIt.registerSingleton(GetWallpaperUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetFavoritesUseCase(getIt(), getIt()));
   getIt.registerSingleton(ToggleFavoriteUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetThemeModeUseCase(getIt(), getIt()));
