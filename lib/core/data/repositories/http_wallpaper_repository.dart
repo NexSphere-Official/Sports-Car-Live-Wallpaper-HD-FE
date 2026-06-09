@@ -5,81 +5,121 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:http/http.dart' as http;
 import '../models/wallpaper_json.dart';
+import '../models/wallpaper_page_json.dart';
 import '../../domain/failures/get_wallpapers_failure.dart';
 import '../../domain/models/wallpaper.dart';
-import '../../domain/models/wallpaper_filter.dart';
+import '../../domain/models/wallpaper_page.dart';
+import '../../domain/models/wallpaper_type.dart';
 import '../../domain/repositories/wallpaper_repository.dart';
+import '../../domain/stores/app_config/app_config_store.dart';
 
 class HttpWallpaperRepository implements WallpaperRepository {
-  HttpWallpaperRepository(this._client);
+  HttpWallpaperRepository(this._client, this._appConfigStore);
 
   final http.Client _client;
+  final AppConfigStore _appConfigStore;
 
-  static const _host = 'api.badalabs.com';
-  static const _packageName = 'com.badalabs.carwallpapers';
+  static const _timeout = Duration(seconds: 20);
 
   @override
-  Future<Either<GetWallpapersFailure, List<Wallpaper>>> getWallpapers({
-    required WallpaperFilter filter,
-    required int limit,
-    required int offset,
+  Future<Either<GetWallpapersFailure, WallpaperPage>> getWallpapers({
+    required WallpaperType type,
+    int? limit,
+    String? cursor,
   }) async {
+    final params = <String, String>{
+      if (limit != null) 'limit': '$limit',
+      if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+    };
+
+    return _request(
+      path: _feedPath(type),
+      query: params,
+      onData: (data) => WallpaperPageJson.fromJson(data).toDomain(),
+    );
+  }
+
+  @override
+  Future<Either<GetWallpapersFailure, Wallpaper>> getWallpaperById(
+    String id,
+  ) async {
+    return _request(
+      path: '/v1/wallpapers/$id',
+      query: const {},
+      onData: (data) {
+        final raw = data['wallpaper'] as Map<String, dynamic>? ?? const {};
+        return WallpaperJson.fromJson(raw).toDomain();
+      },
+    );
+  }
+
+  /// Performs a GET, unwraps the `{ success, data, error }` envelope, and maps
+  /// failures into [GetWallpapersFailure]. Never throws.
+  Future<Either<GetWallpapersFailure, T>> _request<T>({
+    required String path,
+    required Map<String, String> query,
+    required T Function(Map<String, dynamic> data) onData,
+  }) async {
+    final baseUrl = _appConfigStore.apiBaseUrl;
+    if (baseUrl.isEmpty) {
+      return left(const GetWallpapersFailure.network('missing base url'));
+    }
+
     try {
-      final params = <String, String>{
-        'limit': '$limit',
-        'offset': '$offset',
-        'packageName': _packageName,
-        'sort': _sortParam(filter.sort),
-        'type': _typeParam(filter.type),
-      };
-
-      final uri = Uri.https(_host, '/wallpapers', params);
+      final uri = Uri.parse('$baseUrl$path').replace(
+        queryParameters: query.isEmpty ? null : query,
+      );
       final response = await _client
-          .get(uri, headers: {'accept': '*/*'})
-          .timeout(const Duration(seconds: 20));
+          .get(uri, headers: {'accept': 'application/json'})
+          .timeout(_timeout);
 
-      if (response.statusCode != 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
         return left(
           GetWallpapersFailure.network('status ${response.statusCode}'),
         );
       }
 
-      final decoded = jsonDecode(response.body) as List<dynamic>;
-      final wallpapers = decoded
-          .whereType<Map<String, dynamic>>()
-          .map((json) => WallpaperJson.fromJson(json).toDomain())
-          .toList();
-      return right(wallpapers);
+      if (decoded['success'] == true) {
+        final data = decoded['data'] as Map<String, dynamic>? ?? const {};
+        return right(onData(data));
+      }
+
+      final error = decoded['error'] as Map<String, dynamic>? ?? const {};
+      return left(_mapError(error['code'] as String?, response.statusCode));
     } on http.ClientException catch (ex) {
       return left(GetWallpapersFailure.network(ex));
     } on TimeoutException catch (ex) {
       return left(GetWallpapersFailure.network(ex));
     } on SocketException catch (ex) {
       return left(GetWallpapersFailure.network(ex));
+    } on FormatException catch (ex) {
+      return left(GetWallpapersFailure.unknown(ex));
     } catch (ex) {
       return left(GetWallpapersFailure.unknown(ex));
     }
   }
 
-  String _sortParam(WallpaperSort sort) {
-    switch (sort) {
-      case WallpaperSort.popular:
-        return 'popular';
-      case WallpaperSort.random:
-        return 'random';
-      case WallpaperSort.latest:
-        return 'latest';
+  GetWallpapersFailure _mapError(String? code, int statusCode) {
+    switch (code) {
+      case 'NOT_FOUND':
+        return GetWallpapersFailure.notFound(code);
+      case 'RATE_LIMITED':
+      case 'INVALID_CURSOR':
+        return GetWallpapersFailure.network(code ?? 'status $statusCode');
+      default:
+        return GetWallpapersFailure.unknown(code ?? 'status $statusCode');
     }
   }
 
-  String _typeParam(WallpaperType type) {
+  String _feedPath(WallpaperType type) {
     switch (type) {
-      case WallpaperType.still:
-        return 'static';
-      case WallpaperType.live:
-        return 'live';
       case WallpaperType.all:
-        return 'all';
+        return '/v1/wallpapers';
+      case WallpaperType.live:
+        return '/v1/wallpapers/live';
+      case WallpaperType.still:
+        return '/v1/wallpapers/static';
     }
   }
 }

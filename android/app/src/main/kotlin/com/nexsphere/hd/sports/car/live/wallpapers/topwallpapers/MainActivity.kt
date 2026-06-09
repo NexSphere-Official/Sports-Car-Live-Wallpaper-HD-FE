@@ -1,4 +1,4 @@
-package com.wooden.word.link
+package com.nexsphere.hd.sports.car.live.wallpapers.topwallpapers
 
 import android.app.WallpaperManager
 import android.content.ComponentName
@@ -165,7 +165,7 @@ class MainActivity : FlutterActivity() {
 
   companion object {
     private const val TAG = "MainActivity"
-    private const val WALLPAPER_CHANNEL = "com.wooden.word.link/wallpaper"
+    private const val WALLPAPER_CHANNEL = "com.nexsphere.hd.sports.car.live.wallpapers.topwallpapers/wallpaper"
     private const val TARGET_HOME = "home"
     private const val TARGET_LOCK = "lock"
     private const val TARGET_BOTH = "both"

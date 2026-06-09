@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/domain/models/wallpaper.dart';
-import '../../core/domain/models/wallpaper_filter.dart';
+import '../../core/domain/models/wallpaper_page.dart';
+import '../../core/domain/models/wallpaper_type.dart';
 import '../../core/domain/stores/favorites/favorites_state.dart';
 import '../../core/domain/stores/favorites/favorites_store.dart';
 import '../../core/domain/use_cases/get_wallpapers_use_case.dart';
@@ -24,7 +24,6 @@ class HomeCubit extends Cubit<HomeState> {
 
   static const _pageSize = 50;
   static const _maxInitialAttempts = 3;
-  final Random _random = Random();
   StreamSubscription<FavoritesState>? _favoritesSub;
 
   HomeCubit(
@@ -58,17 +57,17 @@ class HomeCubit extends Cubit<HomeState> {
     // stack is ready, so retry a few times with backoff before giving up.
     for (var attempt = 0; attempt < _maxInitialAttempts; attempt++) {
       final result = await _getWallpapersUseCase.execute(
-        filter: state.filter,
+        type: state.type,
         limit: _pageSize,
-        offset: 0,
       );
-      final loaded = result.fold((failure) => false, (wallpapers) {
+      final loaded = result.fold((failure) => false, (page) {
         emit(
           state.copyWith(
             isInitialLoading: false,
             hasError: false,
-            wallpapers: _maybeShuffle(wallpapers),
-            hasReachedEnd: wallpapers.length < _pageSize,
+            wallpapers: page.wallpapers,
+            nextCursor: page.nextCursor,
+            hasReachedEnd: !page.hasMore,
           ),
         );
         return true;
@@ -92,34 +91,38 @@ class HomeCubit extends Cubit<HomeState> {
     if (state.isLoadingMore ||
         state.isInitialLoading ||
         state.hasReachedEnd ||
-        state.hasError) {
+        state.hasError ||
+        state.nextCursor == null) {
       return;
     }
     emit(state.copyWith(isLoadingMore: true));
     final result = await _getWallpapersUseCase.execute(
-      filter: state.filter,
+      type: state.type,
       limit: _pageSize,
-      offset: state.wallpapers.length,
+      cursor: state.nextCursor,
     );
     result.fold((failure) => emit(state.copyWith(isLoadingMore: false)), (
-      more,
+      WallpaperPage page,
     ) {
-      // De-dupe against what we already show (random sort can repeat ids).
+      // De-dupe against what we already show to guard against any overlap.
       final existing = state.wallpapers.map((w) => w.id).toSet();
-      final fresh = more.where((w) => !existing.contains(w.id)).toList();
+      final fresh = page.wallpapers
+          .where((w) => !existing.contains(w.id))
+          .toList();
       emit(
         state.copyWith(
           isLoadingMore: false,
-          wallpapers: [...state.wallpapers, ..._maybeShuffle(fresh)],
-          hasReachedEnd: more.length < _pageSize,
+          wallpapers: [...state.wallpapers, ...fresh],
+          nextCursor: page.nextCursor,
+          hasReachedEnd: !page.hasMore,
         ),
       );
     });
   }
 
   void onSelectType(WallpaperType type) {
-    if (state.filter.type == type) return;
-    emit(state.copyWith(filter: state.filter.copyWith(type: type)));
+    if (state.type == type) return;
+    emit(state.copyWith(type: type, wallpapers: const [], nextCursor: null));
     _loadFirstPage();
   }
 
@@ -137,13 +140,6 @@ class HomeCubit extends Cubit<HomeState> {
 
   Set<String> _favoriteIds() =>
       _favoritesStore.favorites.map((w) => w.id).toSet();
-
-  /// Reshuffle locally so a fresh order appears on every random load.
-  List<Wallpaper> _maybeShuffle(List<Wallpaper> wallpapers) {
-    if (!state.filter.isRandom) return wallpapers;
-    final shuffled = [...wallpapers]..shuffle(_random);
-    return shuffled;
-  }
 
   @override
   Future<void> close() {

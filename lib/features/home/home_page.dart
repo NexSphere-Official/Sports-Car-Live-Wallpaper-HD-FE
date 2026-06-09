@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/domain/models/wallpaper_filter.dart';
+import '../../core/domain/models/wallpaper_type.dart';
 import 'home_cubit.dart';
 import 'home_state.dart';
 import '../../theme/app_colors.dart';
@@ -227,7 +227,7 @@ class _FilterBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: _Segmented<WallpaperType>(
-        value: state.filter.type,
+        value: state.type,
         options: const {
           WallpaperType.all: 'All',
           WallpaperType.live: 'Live',
@@ -276,7 +276,7 @@ class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _FilterHeaderDelegate oldDelegate) =>
-      oldDelegate.state.filter.type != state.filter.type;
+      oldDelegate.state.type != state.type;
 }
 
 class _Segmented<T> extends StatelessWidget {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "752242273591",
+    "project_id": "sports-car-wallpaper-live",
+    "storage_bucket": "sports-car-wallpaper-live.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:752242273591:android:fe7202a94d8872d780feb2",
+        "android_client_info": {
+          "package_name": "com.nexsphere.hd.sports.car.live.wallpapers.topwallpapers"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA34TaAANRdmBi95iexFKFHU4hJxKrxgpE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,8 +1,8 @@
 name: car_wallpaper_live
 description: "Live car wallpapers."
-publish_to: 'none'
+publish_to: "none"
 
-version: 1.4.0+5
+version: 1.0.0+1
 
 environment:
   sdk: ^3.11.5
@@ -28,6 +28,10 @@ dependencies:
 
   # HTTP client
   http: ^1.2.0
+
+  # Firebase
+  firebase_core: ^4.10.0
+  firebase_remote_config: ^6.5.2
 
   # Image caching
   cached_network_image: ^3.3.0

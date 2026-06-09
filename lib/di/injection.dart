@@ -1,21 +1,27 @@
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/data/repositories/firebase_remote_config_repository.dart';
 import '../core/data/repositories/flutter_cache_repository.dart';
 import '../core/data/repositories/http_wallpaper_repository.dart';
 import '../core/data/repositories/native_wallpaper_setter_repository.dart';
 import '../core/data/repositories/shared_prefs_favorites_repository.dart';
 import '../core/data/repositories/shared_prefs_settings_repository.dart';
+import '../core/domain/repositories/app_config_repository.dart';
 import '../core/domain/repositories/cache_repository.dart';
 import '../core/domain/repositories/favorites_repository.dart';
 import '../core/domain/repositories/settings_repository.dart';
 import '../core/domain/repositories/wallpaper_repository.dart';
 import '../core/domain/repositories/wallpaper_setter_repository.dart';
+import '../core/domain/stores/app_config/app_config_store.dart';
 import '../core/domain/stores/favorites/favorites_store.dart';
 import '../core/domain/stores/theme/theme_store.dart';
+import '../core/domain/use_cases/get_app_config_use_case.dart';
 import '../core/domain/use_cases/get_favorites_use_case.dart';
 import '../core/domain/use_cases/get_theme_mode_use_case.dart';
+import '../core/domain/use_cases/get_wallpaper_use_case.dart';
 import '../core/domain/use_cases/get_wallpapers_use_case.dart';
 import '../core/domain/use_cases/clear_cache_use_case.dart';
 import '../core/domain/use_cases/clear_favorites_use_case.dart';
@@ -48,14 +54,19 @@ Future<void> init() async {
   getIt.registerSingleton<SharedPreferences>(prefs);
   getIt.registerLazySingleton(() => http.Client());
   getIt.registerLazySingleton(() => AppNavigator());
+  getIt.registerLazySingleton(() => FirebaseRemoteConfig.instance);
 
   // --- Global Stores ---
   getIt.registerLazySingleton(() => ThemeStore());
   getIt.registerLazySingleton(() => FavoritesStore());
+  getIt.registerLazySingleton(() => AppConfigStore());
 
   // --- Repositories ---
+  getIt.registerLazySingleton<AppConfigRepository>(
+    () => FirebaseRemoteConfigRepository(getIt()),
+  );
   getIt.registerLazySingleton<WallpaperRepository>(
-    () => HttpWallpaperRepository(getIt()),
+    () => HttpWallpaperRepository(getIt(), getIt()),
   );
   getIt.registerLazySingleton<FavoritesRepository>(
     () => SharedPrefsFavoritesRepository(getIt()),
@@ -69,7 +80,9 @@ Future<void> init() async {
   getIt.registerLazySingleton<CacheRepository>(() => FlutterCacheRepository());
 
   // --- Use Cases ---
+  getIt.registerSingleton(GetAppConfigUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetWallpapersUseCase(getIt()));
+  getIt.registerSingleton(GetWallpaperUseCase(getIt()));
   getIt.registerSingleton(GetFavoritesUseCase(getIt(), getIt()));
   getIt.registerSingleton(ToggleFavoriteUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetThemeModeUseCase(getIt(), getIt()));

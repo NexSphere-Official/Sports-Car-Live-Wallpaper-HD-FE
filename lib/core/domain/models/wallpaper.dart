@@ -1,82 +1,56 @@
 import 'package:equatable/equatable.dart';
-import 'wallpaper_category.dart';
-import 'wallpaper_stats.dart';
+import 'wallpaper_kind.dart';
 
+/// A single wallpaper, mirroring the Sports Car Wallpaper API object:
+/// `{ id, type, url, thumbnail, created_at }`.
+///
+/// - **still** → [url] is a `.webp` image, [thumbnail] is `.webp`.
+/// - **live**  → [url] is an `.mp4` video, [thumbnail] is `.webp` (poster).
 class Wallpaper extends Equatable {
   final String id;
-  final String title;
-  final String description;
-  final String imageUrl;
-  final String thumbnailUrl;
-  final String videoUrl;
-  final int width;
-  final int height;
-  final List<String> tags;
-  final List<WallpaperCategory> categories;
-  final WallpaperStats stats;
+  final WallpaperKind kind;
+  final String url;
+  final String thumbnail;
   final DateTime createdAt;
 
   const Wallpaper({
     required this.id,
-    required this.title,
-    required this.description,
-    required this.imageUrl,
-    required this.thumbnailUrl,
-    required this.videoUrl,
-    required this.width,
-    required this.height,
-    required this.tags,
-    required this.categories,
-    required this.stats,
+    required this.kind,
+    required this.url,
+    required this.thumbnail,
     required this.createdAt,
   });
 
-  bool get isLive => videoUrl.isNotEmpty;
+  bool get isLive => kind == WallpaperKind.live;
 
-  double get aspectRatio => (width > 0 && height > 0) ? width / height : 0.66;
+  /// Cheap preview asset for grids — always the `.webp` thumbnail.
+  String get previewUrl => thumbnail.isNotEmpty ? thumbnail : url;
 
-  String get previewUrl => thumbnailUrl.isNotEmpty ? thumbnailUrl : imageUrl;
+  /// Full image for static wallpapers; empty for live ones.
+  String get imageUrl => isLive ? '' : url;
+
+  /// Video source for live wallpapers; empty for static ones.
+  String get videoUrl => isLive ? url : '';
 
   factory Wallpaper.empty() => Wallpaper(
     id: '',
-    title: '',
-    description: '',
-    imageUrl: '',
-    thumbnailUrl: '',
-    videoUrl: '',
-    width: 0,
-    height: 0,
-    tags: const [],
-    categories: const [],
-    stats: WallpaperStats.empty(),
+    kind: WallpaperKind.still,
+    url: '',
+    thumbnail: '',
     createdAt: DateTime.fromMillisecondsSinceEpoch(0),
   );
 
   Wallpaper copyWith({
     String? id,
-    String? title,
-    String? description,
-    String? imageUrl,
-    String? thumbnailUrl,
-    String? videoUrl,
-    int? width,
-    int? height,
-    List<String>? tags,
-    List<WallpaperCategory>? categories,
-    WallpaperStats? stats,
+    WallpaperKind? kind,
+    String? url,
+    String? thumbnail,
     DateTime? createdAt,
   }) => Wallpaper(
     id: id ?? this.id,
-    title: title ?? this.title,
-    description: description ?? this.description,
-    imageUrl: imageUrl ?? this.imageUrl,
-    thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
-    videoUrl: videoUrl ?? this.videoUrl,
-    width: width ?? this.width,
-    height: height ?? this.height,
-    tags: tags ?? this.tags,
-    categories: categories ?? this.categories,
-    stats: stats ?? this.stats,
+    kind: kind ?? this.kind,
+    url: url ?? this.url,
+    thumbnail: thumbnail ?? this.thumbnail,
     createdAt: createdAt ?? this.createdAt,
   );
 

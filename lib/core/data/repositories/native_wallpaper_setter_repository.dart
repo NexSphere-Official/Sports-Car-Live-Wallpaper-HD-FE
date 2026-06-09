@@ -13,7 +13,7 @@ class NativeWallpaperSetterRepository implements WallpaperSetterRepository {
   NativeWallpaperSetterRepository(this._client);
 
   static const MethodChannel _channel = MethodChannel(
-    'com.wooden.word.link/wallpaper',
+    'com.nexsphere.hd.sports.car.live.wallpapers.topwallpapers/wallpaper',
   );
 
   final http.Client _client;

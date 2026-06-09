@@ -1,56 +1,61 @@
 import '../../core/domain/models/wallpaper.dart';
-import '../../core/domain/models/wallpaper_filter.dart';
+import '../../core/domain/models/wallpaper_type.dart';
 import 'home_initial_params.dart';
 
 class HomeState {
-  final WallpaperFilter filter;
+  final WallpaperType type;
   final List<Wallpaper> wallpapers;
   final Set<String> favoriteIds;
   final bool isInitialLoading;
   final bool isLoadingMore;
   final bool hasReachedEnd;
   final bool hasError;
+  final String? nextCursor;
 
   bool get isEmpty => wallpapers.isEmpty && !isInitialLoading && !hasError;
 
   bool isFavorite(String id) => favoriteIds.contains(id);
 
   const HomeState({
-    required this.filter,
+    required this.type,
     required this.wallpapers,
     required this.favoriteIds,
     required this.isInitialLoading,
     required this.isLoadingMore,
     required this.hasReachedEnd,
     required this.hasError,
+    required this.nextCursor,
   });
 
   factory HomeState.initial({required HomeInitialParams initialParams}) =>
       const HomeState(
-        filter: WallpaperFilter(),
+        type: WallpaperType.all,
         wallpapers: [],
         favoriteIds: {},
         isInitialLoading: false,
         isLoadingMore: false,
         hasReachedEnd: false,
         hasError: false,
+        nextCursor: null,
       );
 
   HomeState copyWith({
-    WallpaperFilter? filter,
+    WallpaperType? type,
     List<Wallpaper>? wallpapers,
     Set<String>? favoriteIds,
     bool? isInitialLoading,
     bool? isLoadingMore,
     bool? hasReachedEnd,
     bool? hasError,
+    String? nextCursor,
   }) => HomeState(
-    filter: filter ?? this.filter,
+    type: type ?? this.type,
     wallpapers: wallpapers ?? this.wallpapers,
     favoriteIds: favoriteIds ?? this.favoriteIds,
     isInitialLoading: isInitialLoading ?? this.isInitialLoading,
     isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
     hasError: hasError ?? this.hasError,
+    nextCursor: nextCursor ?? this.nextCursor,
   );
 }
