@@ -5,11 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/data/repositories/firebase_remote_config_repository.dart';
 import '../core/data/repositories/flutter_cache_repository.dart';
+import '../core/data/repositories/platform_app_info_repository.dart';
 import '../core/data/repositories/http_wallpaper_repository.dart';
 import '../core/data/repositories/native_wallpaper_setter_repository.dart';
 import '../core/data/repositories/shared_prefs_favorites_repository.dart';
 import '../core/data/repositories/shared_prefs_settings_repository.dart';
 import '../core/domain/repositories/app_config_repository.dart';
+import '../core/domain/repositories/app_info_repository.dart';
 import '../core/domain/repositories/cache_repository.dart';
 import '../core/domain/repositories/favorites_repository.dart';
 import '../core/domain/repositories/settings_repository.dart';
@@ -19,10 +21,14 @@ import '../core/domain/stores/app_config/app_config_store.dart';
 import '../core/domain/stores/favorites/favorites_store.dart';
 import '../core/domain/stores/theme/theme_store.dart';
 import '../core/domain/use_cases/get_app_config_use_case.dart';
+import '../core/domain/use_cases/get_app_version_use_case.dart';
 import '../core/domain/use_cases/get_favorites_use_case.dart';
 import '../core/domain/use_cases/get_theme_mode_use_case.dart';
+import '../core/domain/use_cases/get_privacy_policy_url_use_case.dart';
 import '../core/domain/use_cases/get_wallpaper_use_case.dart';
 import '../core/domain/use_cases/get_wallpapers_use_case.dart';
+import '../core/domain/use_cases/rate_app_use_case.dart';
+import '../core/domain/use_cases/share_app_use_case.dart';
 import '../core/domain/use_cases/clear_cache_use_case.dart';
 import '../core/domain/use_cases/clear_favorites_use_case.dart';
 import '../core/domain/use_cases/set_theme_mode_use_case.dart';
@@ -36,6 +42,10 @@ import '../features/home/home_cubit.dart';
 import '../features/home/home_initial_params.dart';
 import '../features/home/home_navigator.dart';
 import '../features/home/home_page.dart';
+import '../features/privacy_policy/privacy_policy_cubit.dart';
+import '../features/privacy_policy/privacy_policy_initial_params.dart';
+import '../features/privacy_policy/privacy_policy_navigator.dart';
+import '../features/privacy_policy/privacy_policy_page.dart';
 import '../features/settings/settings_cubit.dart';
 import '../features/settings/settings_initial_params.dart';
 import '../features/settings/settings_navigator.dart';
@@ -78,6 +88,9 @@ Future<void> init() async {
     () => NativeWallpaperSetterRepository(getIt()),
   );
   getIt.registerLazySingleton<CacheRepository>(() => FlutterCacheRepository());
+  getIt.registerLazySingleton<AppInfoRepository>(
+    () => PlatformAppInfoRepository(),
+  );
 
   // --- Use Cases ---
   getIt.registerSingleton(GetAppConfigUseCase(getIt(), getIt()));
@@ -90,6 +103,10 @@ Future<void> init() async {
   getIt.registerSingleton(SetWallpaperUseCase(getIt()));
   getIt.registerSingleton(ClearCacheUseCase(getIt()));
   getIt.registerSingleton(ClearFavoritesUseCase(getIt(), getIt()));
+  getIt.registerSingleton(GetAppVersionUseCase(getIt()));
+  getIt.registerSingleton(ShareAppUseCase(getIt()));
+  getIt.registerSingleton(RateAppUseCase(getIt()));
+  getIt.registerSingleton(GetPrivacyPolicyUrlUseCase(getIt()));
 
   // --- Feature: home ---
   getIt.registerFactory(() => HomeNavigator(getIt()));
@@ -133,9 +150,26 @@ Future<void> init() async {
       getIt(),
       getIt(),
       getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
     ),
   );
   getIt.registerFactoryParam<SettingsPage, SettingsInitialParams, void>(
     (params, _) => SettingsPage(cubit: getIt(param1: params)),
   );
+
+  // --- Feature: privacy_policy ---
+  getIt.registerFactory(() => PrivacyPolicyNavigator(getIt()));
+  getIt.registerFactoryParam<
+    PrivacyPolicyCubit,
+    PrivacyPolicyInitialParams,
+    void
+  >((params, _) => PrivacyPolicyCubit(params, getIt()));
+  getIt.registerFactoryParam<
+    PrivacyPolicyPage,
+    PrivacyPolicyInitialParams,
+    void
+  >((params, _) => PrivacyPolicyPage(cubit: getIt(param1: params)));
 }

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +8,9 @@ import 'home_cubit.dart';
 import 'home_state.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/bouncing_dots.dart';
+import '../../widgets/glass_panel.dart';
+import '../../widgets/shimmer_loading.dart';
 import '../../widgets/wallpaper_tile.dart';
 
 class HomePage extends StatefulWidget {
@@ -69,6 +74,10 @@ class _HomePageState extends State<HomePage> {
                     delegate: _FilterHeaderDelegate(
                       state: state,
                       onSelectType: cubit.onSelectType,
+                      background: Theme.of(context).scaffoldBackgroundColor,
+                      surfaceHigh: context.palette.surfaceHigh,
+                      border: context.palette.border,
+                      textDim: context.palette.textDim,
                     ),
                   ),
                   _buildBody(context, state),
@@ -84,12 +93,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildBody(BuildContext context, HomeState state) {
     if (state.isInitialLoading) {
-      return const SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.accent),
-        ),
-      );
+      return const WallpaperGridShimmer();
     }
     if (state.hasError) {
       return SliverFillRemaining(
@@ -118,7 +122,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisCount: 2,
           mainAxisSpacing: 14,
           crossAxisSpacing: 14,
-          childAspectRatio: 0.6,
+          childAspectRatio: 0.56,
         ),
         delegate: SliverChildBuilderDelegate((context, index) {
           final wallpaper = state.wallpapers[index];
@@ -159,39 +163,45 @@ class _HeaderBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 12, 18),
+      padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(
-                'THE SPORTS',
-                style: Theme.of(context).textTheme.labelMedium,
+              Expanded(
+                child: Text(
+                  'CURATED · LIVE & HD',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
               ),
-              const Spacer(),
-              _HeaderIcon(
-                icon: Icons.favorite_border_rounded,
+              const SizedBox(width: 10),
+              _GlassChip(
+                icon: Icons.favorite_rounded,
+                label: 'Saved',
                 onTap: onTapFavorites,
               ),
-              const SizedBox(width: 2),
-              _HeaderIcon(icon: Icons.tune_rounded, onTap: onTapSettings),
+              const SizedBox(width: 8),
+              _GlassChip(
+                icon: Icons.tune_rounded,
+                label: 'Settings',
+                onTap: onTapSettings,
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: RichText(
-              text: TextSpan(
-                style: Theme.of(context).textTheme.displayLarge,
-                children: const [
-                  TextSpan(text: 'Car live\n'),
-                  TextSpan(
-                    text: 'wallpaper.',
-                    style: TextStyle(color: AppColors.accent),
-                  ),
-                ],
-              ),
+          const SizedBox(height: 18),
+          RichText(
+            text: TextSpan(
+              style: Theme.of(context).textTheme.displayLarge,
+              children: const [
+                TextSpan(text: 'Discover'),
+                TextSpan(
+                  text: '.',
+                  style: TextStyle(color: AppColors.accent),
+                ),
+              ],
             ),
           ),
         ],
@@ -200,32 +210,64 @@ class _HeaderBlock extends StatelessWidget {
   }
 }
 
-class _HeaderIcon extends StatelessWidget {
-  const _HeaderIcon({required this.icon, required this.onTap});
+class _GlassChip extends StatelessWidget {
+  const _GlassChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onTap,
-      visualDensity: VisualDensity.compact,
-      icon: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return GlassPanel(
+      borderRadius: 100,
+      blur: 14,
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(11, 8, 14, 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: onSurface),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: GoogleFonts.chakraPetch(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+              color: onSurface,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _FilterBar extends StatelessWidget {
-  const _FilterBar({required this.state, required this.onSelectType});
+  const _FilterBar({
+    required this.state,
+    required this.onSelectType,
+    required this.surfaceHigh,
+    required this.border,
+    required this.textDim,
+  });
 
   final HomeState state;
   final ValueChanged<WallpaperType> onSelectType;
+  final Color surfaceHigh;
+  final Color border;
+  final Color textDim;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: _Segmented<WallpaperType>(
         value: state.type,
         options: const {
@@ -234,18 +276,36 @@ class _FilterBar extends StatelessWidget {
           WallpaperType.still: 'HD',
         },
         onChanged: onSelectType,
+        surfaceHigh: surfaceHigh,
+        border: border,
+        textDim: textDim,
       ),
     );
   }
 }
 
 class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _FilterHeaderDelegate({required this.state, required this.onSelectType});
+  _FilterHeaderDelegate({
+    required this.state,
+    required this.onSelectType,
+    required this.background,
+    required this.surfaceHigh,
+    required this.border,
+    required this.textDim,
+  });
 
   final HomeState state;
   final ValueChanged<WallpaperType> onSelectType;
 
-  static const double _height = 60;
+  // Colors are resolved at the HomePage context (which always reflects the
+  // active theme) and painted directly here — the pinned header's own context
+  // can lag a theme switch, so we never read Theme.of() inside this delegate.
+  final Color background;
+  final Color surfaceHigh;
+  final Color border;
+  final Color textDim;
+
+  static const double _height = 56;
 
   @override
   double get minExtent => _height;
@@ -259,24 +319,39 @@ class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(
-          bottom: BorderSide(
-            color: overlapsContent
-                ? context.palette.border
-                : Colors.transparent,
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            // Translucent so the wallpapers scrolling beneath blur through.
+            color: background.withValues(alpha: 0.72),
+            border: Border(
+              bottom: BorderSide(
+                color: overlapsContent ? border : Colors.transparent,
+              ),
+            ),
+          ),
+          child: _FilterBar(
+            state: state,
+            onSelectType: onSelectType,
+            surfaceHigh: surfaceHigh,
+            border: border,
+            textDim: textDim,
           ),
         ),
       ),
-      child: _FilterBar(state: state, onSelectType: onSelectType),
     );
   }
 
   @override
   bool shouldRebuild(covariant _FilterHeaderDelegate oldDelegate) =>
-      oldDelegate.state.type != state.type;
+      oldDelegate.state.type != state.type ||
+      oldDelegate.background != background ||
+      oldDelegate.surfaceHigh != surfaceHigh ||
+      oldDelegate.border != border ||
+      oldDelegate.textDim != textDim;
 }
 
 class _Segmented<T> extends StatelessWidget {
@@ -284,20 +359,26 @@ class _Segmented<T> extends StatelessWidget {
     required this.value,
     required this.options,
     required this.onChanged,
+    required this.surfaceHigh,
+    required this.border,
+    required this.textDim,
   });
 
   final T value;
   final Map<T, String> options;
   final ValueChanged<T> onChanged;
+  final Color surfaceHigh;
+  final Color border;
+  final Color textDim;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: context.palette.surfaceHigh,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.palette.border),
+        color: surfaceHigh,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
       ),
       child: Row(
         children: options.entries.map((entry) {
@@ -308,19 +389,19 @@ class _Segmented<T> extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
-                padding: const EdgeInsets.symmetric(vertical: 9),
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: selected ? AppColors.accent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   entry.value,
                   style: GoogleFonts.chakraPetch(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.8,
-                    color: selected ? Colors.white : context.palette.textDim,
+                    color: selected ? Colors.white : textDim,
                   ),
                 ),
               ),
@@ -341,17 +422,8 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     if (state.isLoadingMore) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.4,
-              color: AppColors.accent,
-            ),
-          ),
-        ),
+        padding: EdgeInsets.symmetric(vertical: 28),
+        child: Center(child: BouncingDots()),
       );
     }
     if (state.hasReachedEnd && state.wallpapers.isNotEmpty) {

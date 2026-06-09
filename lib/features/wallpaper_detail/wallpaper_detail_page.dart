@@ -1,12 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import '../../core/domain/models/wallpaper.dart';
 import 'wallpaper_detail_cubit.dart';
 import 'wallpaper_detail_state.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/live_tag.dart';
+import '../../widgets/glass_panel.dart';
 
 class WallpaperDetailPage extends StatefulWidget {
   final WallpaperDetailCubit cubit;
@@ -78,7 +79,7 @@ class _WallpaperDetailPageState extends State<WallpaperDetailPage> {
                       SafeArea(
                         child: Column(
                           children: [
-                            _TopBar(isLive: w.isLive, onBack: cubit.onTapBack),
+                            _TopBar(onBack: cubit.onTapBack),
                             const Spacer(),
                             _ActionBar(
                               onPreview: cubit.onTapPreview,
@@ -162,9 +163,8 @@ class _Scrim extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.isLive, required this.onBack});
+  const _TopBar({required this.onBack});
 
-  final bool isLive;
   final VoidCallback onBack;
 
   @override
@@ -174,8 +174,6 @@ class _TopBar extends StatelessWidget {
       child: Row(
         children: [
           _CircleButton(icon: Icons.arrow_back_rounded, onTap: onBack),
-          const SizedBox(width: 12),
-          if (isLive) const LiveTag(),
         ],
       ),
     );
@@ -190,16 +188,15 @@ class _CircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return GlassPanel(
+      borderRadius: 100,
+      blur: 16,
       onTap: onTap,
-      child: Container(
+      fill: Colors.white.withValues(alpha: 0.12),
+      border: Colors.white.withValues(alpha: 0.22),
+      child: SizedBox(
         width: 44,
         height: 44,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.4),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-        ),
         child: Icon(icon, color: Colors.white, size: 22),
       ),
     );
@@ -242,31 +239,35 @@ class _PreviewButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return GlassPanel(
+      borderRadius: 16,
+      blur: 18,
       onTap: onTap,
-      child: Container(
+      fill: Colors.white.withValues(alpha: 0.12),
+      border: Colors.white.withValues(alpha: 0.25),
+      child: SizedBox(
         height: 56,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.visibility_outlined, color: Colors.white, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'PREVIEW',
-              style: TextStyle(
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.visibility_outlined,
                 color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1,
+                size: 20,
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Text(
+                'PREVIEW',
+                style: GoogleFonts.chakraPetch(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -287,14 +288,19 @@ class _ApplyButton extends StatelessWidget {
         height: 56,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.accent,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.accentSoft, AppColors.accent],
+          ),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           boxShadow: [
             BoxShadow(
-              color: AppColors.accent.withValues(alpha: 0.4),
-              blurRadius: 24,
+              color: AppColors.accent.withValues(alpha: 0.45),
+              blurRadius: 28,
               spreadRadius: -4,
-              offset: const Offset(0, 8),
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -307,18 +313,22 @@ class _ApplyButton extends StatelessWidget {
                   color: Colors.white,
                 ),
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.wallpaper_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 10),
+                  const Icon(
+                    Icons.wallpaper_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
                   Text(
                     'SET WALLPAPER',
-                    style: TextStyle(
+                    style: GoogleFonts.chakraPetch(
                       color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
+                      letterSpacing: 1.4,
                     ),
                   ),
                 ],

@@ -1,6 +1,7 @@
 ﻿import 'package:get_it/get_it.dart';
 import 'settings_initial_params.dart';
 import 'settings_page.dart';
+import '../privacy_policy/privacy_policy_navigator.dart';
 import '../../navigation/app_navigator.dart';
 import '../../navigation/close_route.dart';
 import '../../navigation/error_dialog_route.dart';
@@ -8,7 +9,12 @@ import '../../navigation/info_dialog_route.dart';
 import '../../navigation/confirm_dialog_route.dart';
 
 class SettingsNavigator
-    with CloseRoute, ErrorDialogRoute, InfoDialogRoute, ConfirmDialogRoute {
+    with
+        CloseRoute,
+        ErrorDialogRoute,
+        InfoDialogRoute,
+        ConfirmDialogRoute,
+        PrivacyPolicyRoute {
   SettingsNavigator(this.appNavigator);
 
   @override

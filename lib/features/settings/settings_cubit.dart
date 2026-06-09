@@ -8,7 +8,12 @@ import '../../core/domain/stores/theme/theme_state.dart';
 import '../../core/domain/stores/theme/theme_store.dart';
 import '../../core/domain/use_cases/clear_cache_use_case.dart';
 import '../../core/domain/use_cases/clear_favorites_use_case.dart';
+import '../../core/domain/use_cases/get_app_version_use_case.dart';
+import '../../core/domain/use_cases/get_privacy_policy_url_use_case.dart';
+import '../../core/domain/use_cases/rate_app_use_case.dart';
 import '../../core/domain/use_cases/set_theme_mode_use_case.dart';
+import '../../core/domain/use_cases/share_app_use_case.dart';
+import '../privacy_policy/privacy_policy_initial_params.dart';
 import 'settings_initial_params.dart';
 import 'settings_navigator.dart';
 import 'settings_state.dart';
@@ -18,6 +23,10 @@ class SettingsCubit extends Cubit<SettingsState> {
   final SetThemeModeUseCase _setThemeModeUseCase;
   final ClearCacheUseCase _clearCacheUseCase;
   final ClearFavoritesUseCase _clearFavoritesUseCase;
+  final GetAppVersionUseCase _getAppVersionUseCase;
+  final ShareAppUseCase _shareAppUseCase;
+  final RateAppUseCase _rateAppUseCase;
+  final GetPrivacyPolicyUrlUseCase _getPrivacyPolicyUrlUseCase;
   final ThemeStore _themeStore;
   final FavoritesStore _favoritesStore;
   final SettingsNavigator navigator;
@@ -30,6 +39,10 @@ class SettingsCubit extends Cubit<SettingsState> {
     this._setThemeModeUseCase,
     this._clearCacheUseCase,
     this._clearFavoritesUseCase,
+    this._getAppVersionUseCase,
+    this._shareAppUseCase,
+    this._rateAppUseCase,
+    this._getPrivacyPolicyUrlUseCase,
     this._themeStore,
     this._favoritesStore,
     this.navigator,
@@ -42,6 +55,7 @@ class SettingsCubit extends Cubit<SettingsState> {
         favoritesCount: _favoritesStore.favorites.length,
       ),
     );
+    _loadVersion();
     _themeSub = _themeStore.stream.listen(
       (s) => emit(state.copyWith(mode: s.mode)),
     );
@@ -50,8 +64,27 @@ class SettingsCubit extends Cubit<SettingsState> {
     );
   }
 
+  Future<void> _loadVersion() async {
+    final result = await _getAppVersionUseCase.execute();
+    result.fold((_) {}, (version) => emit(state.copyWith(version: version)));
+  }
+
   Future<void> onSelectMode(AppThemeMode mode) =>
       _setThemeModeUseCase.execute(mode);
+
+  Future<void> onTapShare() => _shareAppUseCase.execute();
+
+  Future<void> onTapRate() => _rateAppUseCase.execute();
+
+  Future<void> onTapPrivacy() async {
+    final result = await _getPrivacyPolicyUrlUseCase.execute();
+    result.fold(
+      (failure) => navigator.showError(failure.displayableFailure().message),
+      (url) => navigator.openPrivacyPolicy(
+        PrivacyPolicyInitialParams(url: url),
+      ),
+    );
+  }
 
   Future<void> onTapClearCache() async {
     if (state.isClearingCache) return;

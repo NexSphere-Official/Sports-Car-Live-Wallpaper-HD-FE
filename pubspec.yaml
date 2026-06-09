@@ -51,6 +51,18 @@ dependencies:
   # File system paths
   path_provider: ^2.1.0
 
+  # Share sheet
+  share_plus: ^10.1.0
+
+  # External links (store listing)
+  url_launcher: ^6.3.0
+
+  # In-app web view (privacy policy)
+  webview_flutter: ^4.7.0
+
+  # App version / package info
+  package_info_plus: ^8.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

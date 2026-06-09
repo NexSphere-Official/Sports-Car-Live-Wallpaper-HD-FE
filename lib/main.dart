@@ -9,6 +9,7 @@ import 'core/domain/use_cases/get_app_config_use_case.dart';
 import 'core/domain/use_cases/get_favorites_use_case.dart';
 import 'core/domain/use_cases/get_theme_mode_use_case.dart';
 import 'di/injection.dart' as di;
+import 'features/home/home_cubit.dart';
 import 'features/home/home_initial_params.dart';
 import 'features/home/home_page.dart';
 import 'firebase_options.dart';
@@ -28,8 +29,20 @@ Future<void> main() async {
   runApp(const SportsCarApp());
 }
 
-class SportsCarApp extends StatelessWidget {
+class SportsCarApp extends StatefulWidget {
   const SportsCarApp({super.key});
+
+  @override
+  State<SportsCarApp> createState() => _SportsCarAppState();
+}
+
+class _SportsCarAppState extends State<SportsCarApp> {
+  // Create the cubit once so loaded wallpapers survive theme changes, while
+  // still building a fresh HomePage widget on each rebuild so the whole page
+  // (including the pinned filter header) repaints with the active theme.
+  final HomeCubit _homeCubit = GetIt.instance<HomeCubit>(
+    param1: const HomeInitialParams(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +56,7 @@ class SportsCarApp extends StatelessWidget {
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: _themeMode(state.mode),
-          home: GetIt.instance<HomePage>(param1: const HomeInitialParams()),
+          home: HomePage(cubit: _homeCubit),
         );
       },
     );
