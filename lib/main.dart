@@ -32,7 +32,7 @@ class SportsCarApp extends StatelessWidget {
       bloc: GetIt.instance<ThemeStore>(),
       builder: (context, state) {
         return MaterialApp(
-          title: 'Sports Car Live Wallpaper 4K',
+          title: 'Live Sports Car Wallpaper 4K',
           debugShowCheckedModeBanner: false,
           navigatorKey: AppNavigator.navigatorKey,
           scaffoldMessengerKey: AppNavigator.scaffoldMessengerKey,
