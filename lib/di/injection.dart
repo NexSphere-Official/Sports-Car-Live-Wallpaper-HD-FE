@@ -50,6 +50,10 @@ import '../features/settings/settings_cubit.dart';
 import '../features/settings/settings_initial_params.dart';
 import '../features/settings/settings_navigator.dart';
 import '../features/settings/settings_page.dart';
+import '../features/splash/splash_cubit.dart';
+import '../features/splash/splash_initial_params.dart';
+import '../features/splash/splash_navigator.dart';
+import '../features/splash/splash_page.dart';
 import '../features/wallpaper_detail/wallpaper_detail_cubit.dart';
 import '../features/wallpaper_detail/wallpaper_detail_initial_params.dart';
 import '../features/wallpaper_detail/wallpaper_detail_navigator.dart';
@@ -107,6 +111,15 @@ Future<void> init() async {
   getIt.registerSingleton(ShareAppUseCase(getIt()));
   getIt.registerSingleton(RateAppUseCase(getIt()));
   getIt.registerSingleton(GetPrivacyPolicyUrlUseCase(getIt()));
+
+  // --- Feature: splash ---
+  getIt.registerFactory(() => SplashNavigator(getIt()));
+  getIt.registerFactoryParam<SplashCubit, SplashInitialParams, void>(
+    (params, _) => SplashCubit(params, getIt(), getIt(), getIt(), getIt()),
+  );
+  getIt.registerFactoryParam<SplashPage, SplashInitialParams, void>(
+    (params, _) => SplashPage(cubit: getIt(param1: params)),
+  );
 
   // --- Feature: home ---
   getIt.registerFactory(() => HomeNavigator(getIt()));

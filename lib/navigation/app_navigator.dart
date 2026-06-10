@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppNavigator {
   static final navigatorKey = GlobalKey<NavigatorState>();
+  static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   Future<R?> push<R>(Route<R> route, {bool useRoot = false}) async =>
       _navigator(useRoot: useRoot).push(route);

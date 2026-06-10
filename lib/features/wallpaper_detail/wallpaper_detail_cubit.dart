@@ -22,15 +22,18 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
     if (state.isSettingWallpaper) return;
 
     // Live wallpapers open the system live-wallpaper preview, where the user
-    // confirms. We must NOT show a success popup — launching the preview is
-    // not the same as applying it.
+    // confirms. Launching the preview is NOT the same as applying it, so we
+    // can't claim success here — instead we flag the pending result and show a
+    // popup once the user returns to this screen (see [onAppResumed]).
     if (state.wallpaper.isLive) {
       emit(state.copyWith(isSettingWallpaper: true));
       final result = await _setWallpaperUseCase.execute(state.wallpaper);
       emit(state.copyWith(isSettingWallpaper: false));
       result.fold(
-        (failure) => navigator.showError(failure.displayableFailure().message),
-        (_) {},
+        (failure) =>
+            navigator.showSnackbar(failure.displayableFailure().message,
+                isError: true),
+        (_) => emit(state.copyWith(awaitingLiveResult: true)),
       );
       return;
     }
@@ -46,11 +49,24 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
     );
     emit(state.copyWith(isSettingWallpaper: false));
     result.fold(
-      (failure) => navigator.showError(failure.displayableFailure().message),
-      (_) => navigator.showInfo(
-        'Wallpaper set',
-        'Applied to your ${_surfaceLabel(surface)}.',
+      (failure) =>
+          navigator.showSnackbar(failure.displayableFailure().message,
+              isError: true),
+      (_) => navigator.showSnackbar(
+        'Wallpaper applied to your ${_surfaceLabel(surface)}.',
       ),
+    );
+  }
+
+  /// The app returned to the foreground. If we'd opened the live-wallpaper
+  /// preview, confirm the outcome with a popup now that the user is back.
+  void onAppResumed() {
+    if (!state.awaitingLiveResult) return;
+    emit(state.copyWith(awaitingLiveResult: false));
+    navigator.showInfo(
+      'Live wallpaper',
+      "Your live wallpaper is ready. If you confirmed it in the preview, "
+          "it's now set on your device.",
     );
   }
 

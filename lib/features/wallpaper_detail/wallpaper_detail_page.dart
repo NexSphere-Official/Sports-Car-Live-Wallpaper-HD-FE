@@ -18,15 +18,26 @@ class WallpaperDetailPage extends StatefulWidget {
   State<WallpaperDetailPage> createState() => _WallpaperDetailPageState();
 }
 
-class _WallpaperDetailPageState extends State<WallpaperDetailPage> {
+class _WallpaperDetailPageState extends State<WallpaperDetailPage>
+    with WidgetsBindingObserver {
   WallpaperDetailCubit get cubit => widget.cubit;
   VideoPlayerController? _videoController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     cubit.onInit();
     _setupVideo(cubit.state.wallpaper);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    // Returning from the native live-wallpaper preview triggers a resume; let
+    // the cubit decide whether to confirm the result.
+    if (lifecycleState == AppLifecycleState.resumed) {
+      cubit.onAppResumed();
+    }
   }
 
   void _setupVideo(Wallpaper wallpaper) {
@@ -47,6 +58,7 @@ class _WallpaperDetailPageState extends State<WallpaperDetailPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _videoController?.dispose();
     super.dispose();
   }

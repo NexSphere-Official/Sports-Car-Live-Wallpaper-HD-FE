@@ -73,3 +73,7 @@ dev_dependencies:
 flutter:
   # Material icons
   uses-material-design: true
+
+  # Splash screen video background
+  assets:
+    - assets/splash.mp4

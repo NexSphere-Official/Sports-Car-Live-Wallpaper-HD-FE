@@ -5,6 +5,7 @@ import '../../navigation/app_navigator.dart';
 import '../../navigation/close_route.dart';
 import '../../navigation/error_dialog_route.dart';
 import '../../navigation/info_dialog_route.dart';
+import '../../navigation/snackbar_route.dart';
 import '../../navigation/wallpaper_surface_sheet_route.dart';
 
 class WallpaperDetailNavigator
@@ -12,6 +13,7 @@ class WallpaperDetailNavigator
         CloseRoute,
         ErrorDialogRoute,
         InfoDialogRoute,
+        SnackbarRoute,
         WallpaperSurfaceSheetRoute {
   WallpaperDetailNavigator(this.appNavigator);
 
