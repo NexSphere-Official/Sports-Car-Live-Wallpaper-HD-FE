@@ -9,10 +9,20 @@ class SplashWordmark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Soft shadows keep type legible over bright video frames (e.g. the neon
+    // light bars) without darkening the footage itself.
+    final titleShadows = [
+      Shadow(
+        color: Colors.black.withValues(alpha: 0.55),
+        blurRadius: 18,
+        offset: const Offset(0, 2),
+      ),
+    ];
     final title = GoogleFonts.archivo(
       fontSize: 52,
       fontWeight: FontWeight.w800,
       letterSpacing: -2,
+      shadows: titleShadows,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -35,7 +45,14 @@ class SplashWordmark extends StatelessWidget {
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 3,
-            color: Colors.white.withValues(alpha: 0.66),
+            color: Colors.white.withValues(alpha: 0.80),
+            shadows: [
+              Shadow(
+                color: Colors.black.withValues(alpha: 0.65),
+                blurRadius: 12,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
         ),
       ],

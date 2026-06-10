@@ -28,8 +28,12 @@ class _WallpaperSurfaceSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // showModalBottomSheet's useSafeArea pads top/left/right but NOT the
+    // bottom, so add the navigation-bar inset ourselves to stop the last
+    // option being clipped behind the system nav bar.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 14, 20, 24 + bottomInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

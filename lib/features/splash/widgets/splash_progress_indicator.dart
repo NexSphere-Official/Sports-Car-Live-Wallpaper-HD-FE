@@ -23,6 +23,13 @@ class SplashProgressIndicator extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: 2,
+          shadows: [
+            Shadow(
+              color: Colors.black.withValues(alpha: 0.6),
+              blurRadius: 10,
+              offset: const Offset(0, 1),
+            ),
+          ],
         );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,7 +56,11 @@ class SplashProgressIndicator extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            BrandedProgressBar(value: state.progress),
+            BrandedProgressBar(
+              value: state.progress,
+              height: 5,
+              trackColor: Colors.white.withValues(alpha: 0.22),
+            ),
           ],
         );
       },
