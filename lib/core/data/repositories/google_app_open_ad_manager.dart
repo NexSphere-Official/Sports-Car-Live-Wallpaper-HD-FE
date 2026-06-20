@@ -12,6 +12,9 @@ import 'full_screen_ad_guard.dart';
 /// recommended pattern: preload, track a 4-hour cache expiry, reload after each
 /// dismiss/failure, and show on foreground via [AppStateEventNotifier]. Shares
 /// the [FullScreenAdGuard] so it never overlaps an interstitial/rewarded ad.
+///
+/// [_enabled] gates all activity so it can be turned off the moment consent is
+/// revoked (and back on when re-granted) without waiting for a relaunch.
 class GoogleAppOpenAdManager implements AppOpenAdManager {
   GoogleAppOpenAdManager(this._guard);
 
@@ -26,6 +29,7 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
   DateTime? _loadStartedAt;
   bool _suppressNextResume = false;
   bool _listening = false;
+  bool _enabled = false;
   bool _isLoading = false;
   Completer<void>? _loadWaiter;
 
@@ -33,6 +37,7 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
   Future<Either<AdsFailure, Unit>> start(AppOpenAdConfig config) async {
     try {
       _config = config;
+      _enabled = true;
       _loadAd();
       if (!_listening) {
         _listening = true;
@@ -46,6 +51,13 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
   }
 
   @override
+  Future<Either<AdsFailure, Unit>> stop() async {
+    _enabled = false;
+    _disposeAd();
+    return right(unit);
+  }
+
+  @override
   Future<Either<AdsFailure, Unit>> suppressNextResume() async {
     _suppressNextResume = true;
     return right(unit);
@@ -54,7 +66,7 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
   @override
   Future<Either<AdsFailure, bool>> showOnColdStart() async {
     final config = _config;
-    if (config == null || !config.onColdStart) return right(false);
+    if (!_enabled || config == null || !config.onColdStart) return right(false);
 
     // Wait for the in-flight preload only while one is actually loading, and
     // only for the remaining load budget — never extend the splash otherwise.
@@ -86,7 +98,7 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
   void _onAppStateChanged(AppState state) {
     if (state != AppState.foreground) return;
     final config = _config;
-    if (config == null || !config.onResume) return;
+    if (!_enabled || config == null || !config.onResume) return;
 
     // One-shot suppression (e.g. returning from an external system screen).
     if (_suppressNextResume) {
@@ -119,22 +131,44 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
 
   void _loadAd() {
     final config = _config;
-    if (config == null || config.adUnitId.isEmpty) return;
+    if (!_enabled || config == null || config.adUnitId.isEmpty) return;
     if (_isLoading || _isAvailable) return;
 
     _isLoading = true;
     _loadStartedAt = DateTime.now();
+
+    // Reset loading state if the SDK callback never fires, so future loads
+    // aren't permanently blocked.
+    var settled = false;
+    final timer = Timer(config.loadTimeout, () {
+      if (settled) return;
+      settled = true;
+      _isLoading = false;
+      _completeWaiter();
+    });
+
     AppOpenAd.load(
       adUnitId: config.adUnitId,
       request: const AdRequest(),
       adLoadCallback: AppOpenAdLoadCallback(
         onAdLoaded: (ad) {
+          timer.cancel();
+          settled = true;
           _isLoading = false;
+          // Disabled meanwhile, or we already hold an ad (late duplicate) →
+          // discard rather than leak/show without consent.
+          if (!_enabled || _ad != null) {
+            ad.dispose();
+            _completeWaiter();
+            return;
+          }
           _ad = ad;
           _loadedAt = DateTime.now();
           _completeWaiter();
         },
         onAdFailedToLoad: (error) {
+          timer.cancel();
+          settled = true;
           _isLoading = false;
           _ad = null;
           _loadedAt = null;
@@ -159,7 +193,8 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
   /// Shows the loaded ad; resolves once it's dismissed (or fails to show).
   Future<void> _show() {
     final ad = _ad;
-    if (ad == null || _guard.isShowing) return Future.value();
+    // Atomically claim the shared full-screen slot before showing.
+    if (ad == null || !_guard.reserve()) return Future.value();
 
     // Consume our reference up front; the callbacks hold the local [ad].
     _ad = null;
@@ -169,13 +204,13 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
       onAdShowedFullScreenContent: (_) => _guard.markShown(),
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        _guard.markDismissed();
+        _guard.release();
         _loadAd();
         if (!dismissed.isCompleted) dismissed.complete();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
-        _guard.markDismissed();
+        _guard.release();
         _loadAd();
         if (!dismissed.isCompleted) dismissed.complete();
       },

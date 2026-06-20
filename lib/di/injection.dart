@@ -33,6 +33,8 @@ import '../core/domain/stores/theme/theme_store.dart';
 import '../core/domain/use_cases/gather_ads_consent_use_case.dart';
 import '../core/domain/use_cases/get_app_config_use_case.dart';
 import '../core/domain/use_cases/preload_rewarded_ad_use_case.dart';
+import '../core/domain/use_cases/preload_saved_interstitial_use_case.dart';
+import '../core/domain/use_cases/refresh_ads_consent_use_case.dart';
 import '../core/domain/use_cases/resolve_wallpaper_ad_slot_use_case.dart';
 import '../core/domain/use_cases/show_apply_interstitial_use_case.dart';
 import '../core/domain/use_cases/show_back_interstitial_use_case.dart';
@@ -136,17 +138,27 @@ Future<void> init() async {
     GatherAdsConsentUseCase(getIt(), getIt(), getIt(), getIt(), getIt()),
   );
   getIt.registerSingleton(ShowColdStartAppOpenAdUseCase(getIt()));
+  getIt.registerSingleton(
+    RefreshAdsConsentUseCase(getIt(), getIt(), getIt(), getIt(), getIt()),
+  );
   getIt.registerSingleton(SuppressNextAppOpenAdUseCase(getIt()));
   getIt.registerSingleton(
     ResolveWallpaperAdSlotUseCase(getIt(), getIt(), getIt()),
   );
-  getIt.registerSingleton(UnlockWallpaperUseCase(getIt(), getIt(), getIt()));
+  getIt.registerSingleton(
+    UnlockWallpaperUseCase(getIt(), getIt(), getIt(), getIt()),
+  );
   getIt.registerSingleton(
     PreloadRewardedAdUseCase(getIt(), getIt(), getIt()),
   );
-  getIt.registerSingleton(ShowApplyInterstitialUseCase(getIt(), getIt()));
+  getIt.registerSingleton(
+    ShowApplyInterstitialUseCase(getIt(), getIt(), getIt()),
+  );
   getIt.registerSingleton(
     ShowBackInterstitialUseCase(getIt(), getIt(), getIt()),
+  );
+  getIt.registerSingleton(
+    PreloadSavedInterstitialUseCase(getIt(), getIt(), getIt()),
   );
   getIt.registerSingleton(GetWallpapersUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetWallpaperUseCase(getIt(), getIt()));
@@ -218,8 +230,15 @@ Future<void> init() async {
   // --- Feature: favorites ---
   getIt.registerFactory(() => FavoritesNavigator(getIt()));
   getIt.registerFactoryParam<FavoritesCubit, FavoritesInitialParams, void>(
-    (params, _) =>
-        FavoritesCubit(params, getIt(), getIt(), getIt(), getIt(), getIt()),
+    (params, _) => FavoritesCubit(
+      params,
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+    ),
   );
   getIt.registerFactoryParam<FavoritesPage, FavoritesInitialParams, void>(
     (params, _) => FavoritesPage(cubit: getIt(param1: params)),
@@ -230,6 +249,7 @@ Future<void> init() async {
   getIt.registerFactoryParam<SettingsCubit, SettingsInitialParams, void>(
     (params, _) => SettingsCubit(
       params,
+      getIt(),
       getIt(),
       getIt(),
       getIt(),

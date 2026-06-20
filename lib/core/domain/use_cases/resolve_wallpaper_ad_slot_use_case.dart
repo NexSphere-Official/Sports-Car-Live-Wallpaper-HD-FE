@@ -30,7 +30,7 @@ class ResolveWallpaperAdSlotUseCase {
     // → open gate, and don't burn a pattern slot. Avoids ever showing a locked
     // wallpaper whose rewarded ad could never load.
     if (!ads.enabled || !_adsStore.canRequestAds) {
-      return right(WallpaperAdGate.open());
+      return right(WallpaperAdGate.empty());
     }
 
     final slotResult = await _resolveSlot(wallpaperId, ads);
@@ -48,7 +48,9 @@ class ResolveWallpaperAdSlotUseCase {
         // Rewarded slot. If rewarded ads can't be served, never lock the
         // wallpaper (otherwise it would be unusable).
         if (!ads.rewarded.isUsable) {
-          return right<SettingsFailure, WallpaperAdGate>(WallpaperAdGate.open());
+          return right<SettingsFailure, WallpaperAdGate>(
+            WallpaperAdGate.empty(),
+          );
         }
 
         final unlocked = await _adPolicyRepository.isUnlocked(wallpaperId);

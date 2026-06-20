@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/domain/models/wallpaper.dart';
 import '../../core/domain/models/wallpaper_page.dart';
 import '../../core/domain/models/wallpaper_type.dart';
+import '../../core/domain/stores/ads/ads_state.dart';
 import '../../core/domain/stores/ads/ads_store.dart';
 import '../../core/domain/stores/app_config/app_config_store.dart';
 import '../../core/domain/stores/favorites/favorites_state.dart';
@@ -29,6 +30,7 @@ class HomeCubit extends Cubit<HomeState> {
   static const _pageSize = 50;
   static const _maxInitialAttempts = 3;
   StreamSubscription<FavoritesState>? _favoritesSub;
+  StreamSubscription<AdsState>? _adsSub;
 
   HomeCubit(
     this.initialParams,
@@ -51,6 +53,11 @@ class HomeCubit extends Cubit<HomeState> {
     );
     _favoritesSub = _favoritesStore.stream.listen(
       (_) => emit(state.copyWith(favoriteIds: _favoriteIds())),
+    );
+    // React to runtime consent changes (e.g. revoked via Settings → privacy
+    // options): show/hide native slots without a restart.
+    _adsSub = _adsStore.stream.listen(
+      (_) => emit(state.copyWith(nativeAdsEnabled: _nativeAdsEnabled)),
     );
     _loadFirstPage();
   }
@@ -145,8 +152,16 @@ class HomeCubit extends Cubit<HomeState> {
     _loadFirstPage();
   }
 
-  Future<void> onToggleFavorite(Wallpaper wallpaper) =>
-      _toggleFavoriteUseCase.execute(wallpaper);
+  Future<void> onToggleFavorite(Wallpaper wallpaper) async {
+    final result = await _toggleFavoriteUseCase.execute(wallpaper);
+    result.fold(
+      (failure) => navigator.showSnackbar(
+        failure.displayableFailure().message,
+        isError: true,
+      ),
+      (_) {},
+    );
+  }
 
   void onTapWallpaper(Wallpaper wallpaper) => navigator.openWallpaperDetail(
     WallpaperDetailInitialParams(wallpaper: wallpaper),
@@ -163,6 +178,7 @@ class HomeCubit extends Cubit<HomeState> {
   @override
   Future<void> close() {
     _favoritesSub?.cancel();
+    _adsSub?.cancel();
     return super.close();
   }
 }

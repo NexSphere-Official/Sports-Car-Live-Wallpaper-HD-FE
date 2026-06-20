@@ -5,9 +5,10 @@ import '../wallpaper_detail/wallpaper_detail_navigator.dart';
 import '../../navigation/app_navigator.dart';
 import '../../navigation/close_route.dart';
 import '../../navigation/error_dialog_route.dart';
+import '../../navigation/snackbar_route.dart';
 
 class FavoritesNavigator
-    with CloseRoute, ErrorDialogRoute, WallpaperDetailRoute {
+    with CloseRoute, ErrorDialogRoute, SnackbarRoute, WallpaperDetailRoute {
   FavoritesNavigator(this.appNavigator);
 
   @override

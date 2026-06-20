@@ -5,16 +5,15 @@ import '../repositories/ads_service.dart';
 import '../stores/ads/ads_store.dart';
 import '../stores/app_config/app_config_store.dart';
 
-/// Shows the interstitial that precedes applying an interstitial-type wallpaper.
-/// No-op (success) when ads can't be requested (consent revoked / SDK not ready)
-/// or interstitials are disabled. The cooldown/skip handling lives in
-/// [AdsService]; callers proceed with the apply flow regardless.
-class ShowApplyInterstitialUseCase {
+/// Preloads the interstitial shown when leaving the Saved page, so it's ready to
+/// display during the back transition. No-op (success) when ads aren't ready,
+/// interstitials are disabled, or the `on_back_from_saved` flag is off.
+class PreloadSavedInterstitialUseCase {
   final AdsService _adsService;
   final AppConfigStore _appConfigStore;
   final AdsStore _adsStore;
 
-  ShowApplyInterstitialUseCase(
+  PreloadSavedInterstitialUseCase(
     this._adsService,
     this._appConfigStore,
     this._adsStore,
@@ -22,12 +21,11 @@ class ShowApplyInterstitialUseCase {
 
   Future<Either<AdsFailure, Unit>> execute() {
     final config = _appConfigStore.config.ads.interstitial;
-    if (!_adsStore.canRequestAds || !config.isUsable) {
+    if (!_adsStore.canRequestAds ||
+        !config.isUsable ||
+        !config.onBackFromSaved) {
       return Future.value(right(unit));
     }
-    return _adsService.showInterstitial(
-      config.adUnitId,
-      cooldown: config.cooldown,
-    );
+    return _adsService.preloadInterstitial(config.adUnitId);
   }
 }

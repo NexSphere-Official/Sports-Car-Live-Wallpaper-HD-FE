@@ -7,8 +7,14 @@ import '../models/ads_config.dart';
 /// each time the app returns to the foreground (subject to config + cooldown).
 abstract class AppOpenAdManager {
   /// Begin managing app-open ads with the given [config]: preload an ad and, if
-  /// resume ads are enabled, start showing on each foreground.
+  /// resume ads are enabled, start showing on each foreground. Idempotent —
+  /// also used to re-enable after a [stop] (e.g. consent re-granted).
   Future<Either<AdsFailure, Unit>> start(AppOpenAdConfig config);
+
+  /// Stop managing app-open ads and drop any cached ad — call when ads can no
+  /// longer be requested (e.g. consent revoked). Foreground events are ignored
+  /// until [start] is called again.
+  Future<Either<AdsFailure, Unit>> stop();
 
   /// Show a cold-start app-open ad, waiting for the preload to finish within the
   /// configured load budget. Returns whether an ad was shown.

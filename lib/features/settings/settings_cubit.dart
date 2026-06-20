@@ -12,6 +12,7 @@ import '../../core/domain/use_cases/get_app_version_use_case.dart';
 import '../../core/domain/use_cases/get_privacy_policy_url_use_case.dart';
 import '../../core/domain/use_cases/is_privacy_options_required_use_case.dart';
 import '../../core/domain/use_cases/rate_app_use_case.dart';
+import '../../core/domain/use_cases/refresh_ads_consent_use_case.dart';
 import '../../core/domain/use_cases/set_theme_mode_use_case.dart';
 import '../../core/domain/use_cases/share_app_use_case.dart';
 import '../../core/domain/use_cases/show_privacy_options_form_use_case.dart';
@@ -32,6 +33,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   final GetPrivacyPolicyUrlUseCase _getPrivacyPolicyUrlUseCase;
   final IsPrivacyOptionsRequiredUseCase _isPrivacyOptionsRequiredUseCase;
   final ShowPrivacyOptionsFormUseCase _showPrivacyOptionsFormUseCase;
+  final RefreshAdsConsentUseCase _refreshAdsConsentUseCase;
   final SuppressNextAppOpenAdUseCase _suppressNextAppOpenAdUseCase;
   final ThemeStore _themeStore;
   final FavoritesStore _favoritesStore;
@@ -51,6 +53,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     this._getPrivacyPolicyUrlUseCase,
     this._isPrivacyOptionsRequiredUseCase,
     this._showPrivacyOptionsFormUseCase,
+    this._refreshAdsConsentUseCase,
     this._suppressNextAppOpenAdUseCase,
     this._themeStore,
     this._favoritesStore,
@@ -87,12 +90,20 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   Future<void> onTapPrivacyOptions() async {
     await _showPrivacyOptionsFormUseCase.execute();
-    // The requirement can change after the user updates choices.
+    // The user may have revoked/granted consent — re-evaluate ad readiness so
+    // live placements (e.g. home native slots) react immediately, and refresh
+    // the requirement flag.
+    await _refreshAdsConsentUseCase.execute();
     await _loadPrivacyOptions();
   }
 
-  Future<void> onSelectMode(AppThemeMode mode) =>
-      _setThemeModeUseCase.execute(mode);
+  Future<void> onSelectMode(AppThemeMode mode) async {
+    final result = await _setThemeModeUseCase.execute(mode);
+    result.fold(
+      (failure) => navigator.showError(failure.displayableFailure().message),
+      (_) {},
+    );
+  }
 
   Future<void> onTapShare() async {
     // The share sheet backgrounds the app; don't pop an app-open ad on return.

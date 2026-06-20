@@ -14,9 +14,9 @@ class WallpaperAdGate extends Equatable {
 
   const WallpaperAdGate({required this.slot, required this.isUnlocked});
 
-  /// Open gate — applies directly with no ad (used when ads are disabled or the
-  /// relevant ad unit is unavailable).
-  factory WallpaperAdGate.open() =>
+  /// The safe default: an open gate that applies directly with no ad (used when
+  /// ads are disabled, can't be requested, or the relevant unit is unavailable).
+  factory WallpaperAdGate.empty() =>
       const WallpaperAdGate(slot: AdSlotType.rewarded, isUnlocked: true);
 
   bool get isLocked => slot == AdSlotType.rewarded && !isUnlocked;

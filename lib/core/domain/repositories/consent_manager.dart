@@ -11,6 +11,10 @@ abstract class ConsentManager {
   /// requested afterwards.
   Future<Either<ConsentFailure, bool>> gatherConsent();
 
+  /// Whether the SDK currently has enough consent to request ads. Re-read after
+  /// the user changes choices via the privacy options form.
+  Future<Either<ConsentFailure, bool>> canRequestAds();
+
   /// Whether a privacy options entry point must be surfaced (e.g. in Settings).
   Future<Either<ConsentFailure, bool>> isPrivacyOptionsRequired();
 

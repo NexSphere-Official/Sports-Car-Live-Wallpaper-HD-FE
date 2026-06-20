@@ -1,8 +1,12 @@
 import '../../domain/models/app_config.dart';
 import 'ads_config_json.dart';
 
-/// Serialization for the Remote Config `app_config` JSON value:
+/// Parses the Remote Config `app_config` JSON value:
 /// `{ "api_base_url": "https://...", "ads": { ... } }`.
+///
+/// Read-only inbound parser: Remote Config is authored server-side and the app
+/// never writes it back, so this intentionally has no `toJson` (only `fromJson`
+/// + `toDomain`).
 class AppConfigJson {
   final String apiBaseUrl;
   final Map<String, dynamic>? ads;

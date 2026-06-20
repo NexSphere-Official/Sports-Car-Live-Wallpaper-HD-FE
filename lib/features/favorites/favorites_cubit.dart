@@ -5,6 +5,7 @@ import '../../core/domain/models/wallpaper.dart';
 import '../../core/domain/stores/favorites/favorites_state.dart';
 import '../../core/domain/stores/favorites/favorites_store.dart';
 import '../../core/domain/use_cases/get_favorites_use_case.dart';
+import '../../core/domain/use_cases/preload_saved_interstitial_use_case.dart';
 import '../../core/domain/use_cases/show_back_interstitial_use_case.dart';
 import '../../core/domain/use_cases/toggle_favorite_use_case.dart';
 import 'favorites_initial_params.dart';
@@ -17,6 +18,7 @@ class FavoritesCubit extends Cubit<FavoritesPageState> {
   final GetFavoritesUseCase _getFavoritesUseCase;
   final ToggleFavoriteUseCase _toggleFavoriteUseCase;
   final ShowBackInterstitialUseCase _showBackInterstitialUseCase;
+  final PreloadSavedInterstitialUseCase _preloadSavedInterstitialUseCase;
   final FavoritesStore _favoritesStore;
   final FavoritesNavigator navigator;
 
@@ -27,6 +29,7 @@ class FavoritesCubit extends Cubit<FavoritesPageState> {
     this._getFavoritesUseCase,
     this._toggleFavoriteUseCase,
     this._showBackInterstitialUseCase,
+    this._preloadSavedInterstitialUseCase,
     this._favoritesStore,
     this.navigator,
   ) : super(FavoritesPageState.initial(initialParams: initialParams));
@@ -36,14 +39,25 @@ class FavoritesCubit extends Cubit<FavoritesPageState> {
     _favoritesSub = _favoritesStore.stream.listen(
       (s) => emit(state.copyWith(favorites: s.favorites)),
     );
+    // Preload the back interstitial so it's ready to show during the back
+    // transition rather than popping late over the previous screen.
+    unawaited(_preloadSavedInterstitialUseCase.execute());
     await _getFavoritesUseCase.execute();
     emit(
       state.copyWith(isLoading: false, favorites: _favoritesStore.favorites),
     );
   }
 
-  Future<void> onToggleFavorite(Wallpaper wallpaper) =>
-      _toggleFavoriteUseCase.execute(wallpaper);
+  Future<void> onToggleFavorite(Wallpaper wallpaper) async {
+    final result = await _toggleFavoriteUseCase.execute(wallpaper);
+    result.fold(
+      (failure) => navigator.showSnackbar(
+        failure.displayableFailure().message,
+        isError: true,
+      ),
+      (_) {},
+    );
+  }
 
   void onTapWallpaper(Wallpaper wallpaper) => navigator.openWallpaperDetail(
     WallpaperDetailInitialParams(wallpaper: wallpaper),

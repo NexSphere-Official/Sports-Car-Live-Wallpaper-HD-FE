@@ -46,6 +46,15 @@ class UmpConsentManager implements ConsentManager {
   }
 
   @override
+  Future<Either<ConsentFailure, bool>> canRequestAds() async {
+    try {
+      return right(await ConsentInformation.instance.canRequestAds());
+    } catch (ex) {
+      return left(ConsentFailure.unknown(ex));
+    }
+  }
+
+  @override
   Future<Either<ConsentFailure, bool>> isPrivacyOptionsRequired() async {
     try {
       final status =

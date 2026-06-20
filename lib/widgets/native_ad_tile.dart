@@ -8,6 +8,15 @@ import '../theme/app_theme.dart';
 /// to match the app. Loads its own [NativeAd] once, reserves its height with a
 /// placeholder while loading (so loading in doesn't shift the feed), and
 /// collapses on failure.
+///
+/// ARCHITECTURE NOTE: unlike the full-screen formats (interstitial/rewarded/
+/// app-open) which live behind [AdsService], native ads are inherently
+/// widget-coupled — a [NativeAd] is bound 1:1 to the [AdWidget] that renders it
+/// and must share its lifecycle (load when mounted, dispose when unmounted, and
+/// styled from the inherited theme). Routing that through a data-layer service
+/// would split one resource's lifecycle across layers for no real gain, so the
+/// load/dispose lifecycle is deliberately owned here. The ad unit id and the
+/// enable/consent gating still come from config/[AdsStore] via the cubit.
 class NativeAdTile extends StatefulWidget {
   final String adUnitId;
 

@@ -3,6 +3,10 @@ import 'wallpaper_json.dart';
 
 /// Parses the `data` payload of a list response:
 /// `{ "wallpapers": [...], "pagination": { next_cursor, has_more, limit } }`.
+///
+/// Read-only inbound parser: this is a server/Remote-Config response the app
+/// never sends back, so it intentionally has no `toJson` (only `fromJson` +
+/// `toDomain`).
 class WallpaperPageJson {
   final List<WallpaperJson> wallpapers;
   final String? nextCursor;

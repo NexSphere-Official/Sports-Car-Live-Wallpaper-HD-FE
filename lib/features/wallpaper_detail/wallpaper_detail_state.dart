@@ -34,7 +34,7 @@ class WallpaperDetailState {
     showChrome: true,
     isSettingWallpaper: false,
     awaitingLiveResult: false,
-    adGate: WallpaperAdGate.open(),
+    adGate: WallpaperAdGate.empty(),
     isPreparingAd: false,
   );
 

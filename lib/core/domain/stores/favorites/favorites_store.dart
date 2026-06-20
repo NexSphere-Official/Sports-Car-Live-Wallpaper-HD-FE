@@ -12,18 +12,4 @@ class FavoritesStore extends Cubit<FavoritesState> {
 
   void setFavorites(List<Wallpaper> favorites) =>
       emit(state.copyWith(favorites: favorites));
-
-  void toggle(Wallpaper wallpaper) {
-    if (isFavorite(wallpaper)) {
-      emit(
-        state.copyWith(
-          favorites: state.favorites
-              .where((w) => w.id != wallpaper.id)
-              .toList(),
-        ),
-      );
-    } else {
-      emit(state.copyWith(favorites: [wallpaper, ...state.favorites]));
-    }
-  }
 }

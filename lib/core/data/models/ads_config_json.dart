@@ -1,9 +1,13 @@
 import '../../domain/models/ads_config.dart';
 
-/// Serialization for the `ads` object nested in the Remote Config `app_config`
-/// value. Remote values are overlaid on top of [AdsConfig.empty] in [toDomain]
-/// so any missing key degrades to the built-in default rather than throwing —
-/// defaults live in the domain model, not duplicated here.
+/// Parses the `ads` object nested in the Remote Config `app_config` value.
+/// Remote values are overlaid on top of [AdsConfig.empty] in [toDomain] so any
+/// missing key degrades to the built-in default rather than throwing — defaults
+/// live in the domain model, not duplicated here.
+///
+/// Read-only inbound parser: Remote Config is authored server-side and never
+/// written back, so this intentionally has no `toJson` (only `fromJson` +
+/// `toDomain`).
 class AdsConfigJson {
   final Map<String, dynamic> json;
 
