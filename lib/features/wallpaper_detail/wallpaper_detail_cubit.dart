@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/domain/models/wallpaper_surface.dart';
+import '../../core/domain/use_cases/preload_rewarded_ad_use_case.dart';
 import '../../core/domain/use_cases/resolve_wallpaper_ad_slot_use_case.dart';
 import '../../core/domain/use_cases/set_wallpaper_use_case.dart';
 import '../../core/domain/use_cases/show_apply_interstitial_use_case.dart';
@@ -15,6 +16,7 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
   final ResolveWallpaperAdSlotUseCase _resolveWallpaperAdSlotUseCase;
   final UnlockWallpaperUseCase _unlockWallpaperUseCase;
   final ShowApplyInterstitialUseCase _showApplyInterstitialUseCase;
+  final PreloadRewardedAdUseCase _preloadRewardedAdUseCase;
   final SuppressNextAppOpenAdUseCase _suppressNextAppOpenAdUseCase;
   final WallpaperDetailNavigator navigator;
 
@@ -24,6 +26,7 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
     this._resolveWallpaperAdSlotUseCase,
     this._unlockWallpaperUseCase,
     this._showApplyInterstitialUseCase,
+    this._preloadRewardedAdUseCase,
     this._suppressNextAppOpenAdUseCase,
     this.navigator,
   ) : super(WallpaperDetailState.initial(initialParams: initialParams));
@@ -34,11 +37,13 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
     final result = await _resolveWallpaperAdSlotUseCase.execute(
       state.wallpaper.id,
     );
-    result.fold(
-      // On failure, leave the default open gate so the wallpaper stays usable.
-      (_) {},
-      (gate) => emit(state.copyWith(adGate: gate)),
-    );
+    // On failure, leave the default open gate so the wallpaper stays usable.
+    final gate = result.fold((_) => null, (gate) => gate);
+    if (gate == null) return;
+    emit(state.copyWith(adGate: gate));
+
+    // Preload the rewarded ad so tapping "Unlock" shows it instantly.
+    if (gate.isLocked) await _preloadRewardedAdUseCase.execute();
   }
 
   /// "Unlock" action for locked (rewarded) wallpapers: watch a rewarded ad,

@@ -28,20 +28,31 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: BlocBuilder<FavoritesCubit, FavoritesPageState>(
-        bloc: cubit,
-        builder: (context, state) {
-          return SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                _FavHeader(count: state.favorites.length, onBack: cubit.onTapBack),
-                Expanded(child: _buildBody(state)),
-              ],
-            ),
-          );
-        },
+    // Block the automatic system-back pop so leaving always goes through the
+    // cubit (navigate back, then interstitial) — same path as the header button.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) cubit.onTapBack();
+      },
+      child: Scaffold(
+        body: BlocBuilder<FavoritesCubit, FavoritesPageState>(
+          bloc: cubit,
+          builder: (context, state) {
+            return SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  _FavHeader(
+                    count: state.favorites.length,
+                    onBack: cubit.onTapBack,
+                  ),
+                  Expanded(child: _buildBody(state)),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

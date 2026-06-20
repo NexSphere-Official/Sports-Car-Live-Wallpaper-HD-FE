@@ -19,8 +19,13 @@ abstract class AdsService {
     Duration cooldown = Duration.zero,
   });
 
-  /// Load and show a rewarded ad. Resolves once dismissed with whether the
-  /// reward was earned (`right(true)`) or not (`right(false)`); `left` on a
-  /// load/show error.
+  /// Preload a rewarded ad so a later [showRewarded] can display instantly.
+  /// Idempotent — no-op when one is already loaded or loading. Resolves
+  /// `right(unit)` when ready (or already pending), `left` on load error.
+  Future<Either<AdsFailure, Unit>> preloadRewarded(String adUnitId);
+
+  /// Show a rewarded ad — using a preloaded one if available, otherwise loading
+  /// on demand. Resolves once dismissed with whether the reward was earned
+  /// (`right(true)`) or not (`right(false)`); `left` on a load/show error.
   Future<Either<AdsFailure, bool>> showRewarded(String adUnitId);
 }

@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/domain/models/wallpaper.dart';
 import '../../core/domain/models/wallpaper_page.dart';
 import '../../core/domain/models/wallpaper_type.dart';
+import '../../core/domain/stores/ads/ads_store.dart';
+import '../../core/domain/stores/app_config/app_config_store.dart';
 import '../../core/domain/stores/favorites/favorites_state.dart';
 import '../../core/domain/stores/favorites/favorites_store.dart';
 import '../../core/domain/use_cases/get_wallpapers_use_case.dart';
@@ -20,6 +22,8 @@ class HomeCubit extends Cubit<HomeState> {
   final GetWallpapersUseCase _getWallpapersUseCase;
   final ToggleFavoriteUseCase _toggleFavoriteUseCase;
   final FavoritesStore _favoritesStore;
+  final AppConfigStore _appConfigStore;
+  final AdsStore _adsStore;
   final HomeNavigator navigator;
 
   static const _pageSize = 50;
@@ -31,15 +35,30 @@ class HomeCubit extends Cubit<HomeState> {
     this._getWallpapersUseCase,
     this._toggleFavoriteUseCase,
     this._favoritesStore,
+    this._appConfigStore,
+    this._adsStore,
     this.navigator,
   ) : super(HomeState.initial(initialParams: initialParams));
 
   void onInit() {
-    emit(state.copyWith(favoriteIds: _favoriteIds()));
+    emit(
+      state.copyWith(
+        favoriteIds: _favoriteIds(),
+        nativeAdsEnabled: _nativeAdsEnabled,
+        nativeAdUnitId: _appConfigStore.config.ads.native.adUnitId,
+        nativeAdInterval: _appConfigStore.config.ads.native.gridInterval,
+      ),
+    );
     _favoritesSub = _favoritesStore.stream.listen(
       (_) => emit(state.copyWith(favoriteIds: _favoriteIds())),
     );
     _loadFirstPage();
+  }
+
+  bool get _nativeAdsEnabled {
+    final ads = _appConfigStore.config.ads;
+    // Runtime gate: consent given + SDK initialized, not just Remote Config.
+    return _adsStore.canRequestAds && ads.enabled && ads.native.isUsable;
   }
 
   Future<void> onRefresh() => _loadFirstPage();

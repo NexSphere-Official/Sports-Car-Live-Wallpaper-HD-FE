@@ -26,13 +26,16 @@ import '../core/domain/repositories/favorites_repository.dart';
 import '../core/domain/repositories/settings_repository.dart';
 import '../core/domain/repositories/wallpaper_repository.dart';
 import '../core/domain/repositories/wallpaper_setter_repository.dart';
+import '../core/domain/stores/ads/ads_store.dart';
 import '../core/domain/stores/app_config/app_config_store.dart';
 import '../core/domain/stores/favorites/favorites_store.dart';
 import '../core/domain/stores/theme/theme_store.dart';
 import '../core/domain/use_cases/gather_ads_consent_use_case.dart';
 import '../core/domain/use_cases/get_app_config_use_case.dart';
+import '../core/domain/use_cases/preload_rewarded_ad_use_case.dart';
 import '../core/domain/use_cases/resolve_wallpaper_ad_slot_use_case.dart';
 import '../core/domain/use_cases/show_apply_interstitial_use_case.dart';
+import '../core/domain/use_cases/show_back_interstitial_use_case.dart';
 import '../core/domain/use_cases/show_cold_start_app_open_ad_use_case.dart';
 import '../core/domain/use_cases/suppress_next_app_open_ad_use_case.dart';
 import '../core/domain/use_cases/unlock_wallpaper_use_case.dart';
@@ -91,6 +94,7 @@ Future<void> init() async {
   getIt.registerLazySingleton(() => ThemeStore());
   getIt.registerLazySingleton(() => FavoritesStore());
   getIt.registerLazySingleton(() => AppConfigStore());
+  getIt.registerLazySingleton(() => AdsStore());
 
   // --- Repositories ---
   getIt.registerLazySingleton<AppConfigRepository>(
@@ -129,15 +133,21 @@ Future<void> init() async {
   // --- Use Cases ---
   getIt.registerSingleton(GetAppConfigUseCase(getIt(), getIt()));
   getIt.registerSingleton(
-    GatherAdsConsentUseCase(getIt(), getIt(), getIt(), getIt()),
+    GatherAdsConsentUseCase(getIt(), getIt(), getIt(), getIt(), getIt()),
   );
   getIt.registerSingleton(ShowColdStartAppOpenAdUseCase(getIt()));
   getIt.registerSingleton(SuppressNextAppOpenAdUseCase(getIt()));
   getIt.registerSingleton(
-    ResolveWallpaperAdSlotUseCase(getIt(), getIt()),
+    ResolveWallpaperAdSlotUseCase(getIt(), getIt(), getIt()),
   );
   getIt.registerSingleton(UnlockWallpaperUseCase(getIt(), getIt(), getIt()));
+  getIt.registerSingleton(
+    PreloadRewardedAdUseCase(getIt(), getIt(), getIt()),
+  );
   getIt.registerSingleton(ShowApplyInterstitialUseCase(getIt(), getIt()));
+  getIt.registerSingleton(
+    ShowBackInterstitialUseCase(getIt(), getIt(), getIt()),
+  );
   getIt.registerSingleton(GetWallpapersUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetWallpaperUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetFavoritesUseCase(getIt(), getIt()));
@@ -174,7 +184,8 @@ Future<void> init() async {
   // --- Feature: home ---
   getIt.registerFactory(() => HomeNavigator(getIt()));
   getIt.registerFactoryParam<HomeCubit, HomeInitialParams, void>(
-    (params, _) => HomeCubit(params, getIt(), getIt(), getIt(), getIt()),
+    (params, _) =>
+        HomeCubit(params, getIt(), getIt(), getIt(), getIt(), getIt(), getIt()),
   );
   getIt.registerFactoryParam<HomePage, HomeInitialParams, void>(
     (params, _) => HomePage(cubit: getIt(param1: params)),
@@ -195,6 +206,7 @@ Future<void> init() async {
       getIt(),
       getIt(),
       getIt(),
+      getIt(),
     ),
   );
   getIt.registerFactoryParam<
@@ -206,7 +218,8 @@ Future<void> init() async {
   // --- Feature: favorites ---
   getIt.registerFactory(() => FavoritesNavigator(getIt()));
   getIt.registerFactoryParam<FavoritesCubit, FavoritesInitialParams, void>(
-    (params, _) => FavoritesCubit(params, getIt(), getIt(), getIt(), getIt()),
+    (params, _) =>
+        FavoritesCubit(params, getIt(), getIt(), getIt(), getIt(), getIt()),
   );
   getIt.registerFactoryParam<FavoritesPage, FavoritesInitialParams, void>(
     (params, _) => FavoritesPage(cubit: getIt(param1: params)),

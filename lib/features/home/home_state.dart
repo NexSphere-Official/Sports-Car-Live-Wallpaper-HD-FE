@@ -12,6 +12,11 @@ class HomeState {
   final bool hasError;
   final String? nextCursor;
 
+  /// Native ad placement, resolved from Remote Config at init.
+  final bool nativeAdsEnabled;
+  final String nativeAdUnitId;
+  final int nativeAdInterval;
+
   bool get isEmpty => wallpapers.isEmpty && !isInitialLoading && !hasError;
 
   bool isFavorite(String id) => favoriteIds.contains(id);
@@ -25,6 +30,9 @@ class HomeState {
     required this.hasReachedEnd,
     required this.hasError,
     required this.nextCursor,
+    required this.nativeAdsEnabled,
+    required this.nativeAdUnitId,
+    required this.nativeAdInterval,
   });
 
   factory HomeState.initial({required HomeInitialParams initialParams}) =>
@@ -37,6 +45,9 @@ class HomeState {
         hasReachedEnd: false,
         hasError: false,
         nextCursor: null,
+        nativeAdsEnabled: false,
+        nativeAdUnitId: '',
+        nativeAdInterval: 8,
       );
 
   HomeState copyWith({
@@ -48,6 +59,9 @@ class HomeState {
     bool? hasReachedEnd,
     bool? hasError,
     String? nextCursor,
+    bool? nativeAdsEnabled,
+    String? nativeAdUnitId,
+    int? nativeAdInterval,
   }) => HomeState(
     type: type ?? this.type,
     wallpapers: wallpapers ?? this.wallpapers,
@@ -57,5 +71,8 @@ class HomeState {
     hasReachedEnd: hasReachedEnd ?? this.hasReachedEnd,
     hasError: hasError ?? this.hasError,
     nextCursor: nextCursor ?? this.nextCursor,
+    nativeAdsEnabled: nativeAdsEnabled ?? this.nativeAdsEnabled,
+    nativeAdUnitId: nativeAdUnitId ?? this.nativeAdUnitId,
+    nativeAdInterval: nativeAdInterval ?? this.nativeAdInterval,
   );
 }

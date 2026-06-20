@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/domain/models/wallpaper.dart';
 import '../../core/domain/models/wallpaper_type.dart';
 import 'home_cubit.dart';
 import 'home_state.dart';
@@ -10,6 +11,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/bouncing_dots.dart';
 import '../../widgets/glass_panel.dart';
+import '../../widgets/native_ad_tile.dart';
 import '../../widgets/shimmer_loading.dart';
 import '../../widgets/wallpaper_tile.dart';
 
@@ -80,7 +82,7 @@ class _HomePageState extends State<HomePage> {
                       textDim: context.palette.textDim,
                     ),
                   ),
-                  _buildBody(context, state),
+                  ..._buildContentSlivers(context, state),
                   SliverToBoxAdapter(child: _Footer(state: state)),
                 ],
               ),
@@ -91,64 +93,149 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildBody(BuildContext context, HomeState state) {
+  /// The scrollable content area: shimmer/error/empty states, or the wallpaper
+  /// grid with full-width native ad cards interleaved after every N wallpapers.
+  List<Widget> _buildContentSlivers(BuildContext context, HomeState state) {
     if (state.isInitialLoading) {
-      return const WallpaperGridShimmer();
+      return const [WallpaperGridShimmer()];
     }
     if (state.hasError) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: _Message(
-          icon: Icons.wifi_off_rounded,
-          title: 'Engine stalled',
-          subtitle: 'We couldn\'t reach the garage. Pull to retry.',
+      return const [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _Message(
+            icon: Icons.wifi_off_rounded,
+            title: 'Engine stalled',
+            subtitle: 'We couldn\'t reach the garage. Pull to retry.',
+          ),
         ),
-      );
+      ];
     }
     if (state.isEmpty) {
-      return SliverFillRemaining(
-        hasScrollBody: false,
-        child: _Message(
-          icon: Icons.search_off_rounded,
-          title: 'Nothing in this lane',
-          subtitle: 'Try a different filter.',
+      return const [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _Message(
+            icon: Icons.search_off_rounded,
+            title: 'Nothing in this lane',
+            subtitle: 'Try a different filter.',
+          ),
         ),
-      );
+      ];
     }
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 14,
-          crossAxisSpacing: 14,
-          childAspectRatio: 0.56,
+
+    // A single lazy list of rows (2-up wallpapers + full-width native cards).
+    // Lazy so native tiles only build/load as they approach the viewport,
+    // instead of all slots loading up front.
+    final rows = _buildRows(state);
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => _buildRow(state, rows[index]),
+            childCount: rows.length,
+          ),
         ),
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final wallpaper = state.wallpapers[index];
-          return TweenAnimationBuilder<double>(
-            key: ValueKey(wallpaper.id),
-            tween: Tween(begin: 0, end: 1),
-            duration: Duration(milliseconds: 350 + (index % 6) * 60),
-            curve: Curves.easeOutCubic,
-            builder: (context, t, child) => Opacity(
-              opacity: t.clamp(0, 1),
-              child: Transform.translate(
-                offset: Offset(0, (1 - t) * 24),
-                child: child,
+      ),
+    ];
+  }
+
+  /// Flattens the wallpaper list into 2-up rows, inserting a native ad row
+  /// after every [HomeState.nativeAdInterval] wallpapers (between content only).
+  List<_FeedRow> _buildRows(HomeState state) {
+    final wallpapers = state.wallpapers;
+    final adsOn = state.nativeAdsEnabled;
+    final interval = state.nativeAdInterval > 0 ? state.nativeAdInterval : 8;
+
+    final rows = <_FeedRow>[];
+    var sinceAd = 0;
+    var slot = 0;
+    var i = 0;
+    while (i < wallpapers.length) {
+      final first = wallpapers[i];
+      final second = i + 1 < wallpapers.length ? wallpapers[i + 1] : null;
+      rows.add(_WallpaperRow(first: first, second: second));
+      final added = second != null ? 2 : 1;
+      i += added;
+      sinceAd += added;
+      // Only between content — never a trailing ad after the last wallpaper.
+      if (adsOn && sinceAd >= interval && i < wallpapers.length) {
+        rows.add(_AdRow(adUnitId: state.nativeAdUnitId, slot: slot));
+        slot++;
+        sinceAd = 0;
+      }
+    }
+    return rows;
+  }
+
+  Widget _buildRow(HomeState state, _FeedRow row) {
+    switch (row) {
+      case _WallpaperRow():
+        return Padding(
+          key: ValueKey('row-${row.first.id}'),
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _animatedTile(state, row.first)),
+              const SizedBox(width: 14),
+              Expanded(
+                child: row.second != null
+                    ? _animatedTile(state, row.second!)
+                    : const SizedBox.shrink(),
               ),
-            ),
-            child: WallpaperTile(
-              wallpaper: wallpaper,
-              isFavorite: state.isFavorite(wallpaper.id),
-              onToggleFavorite: () => cubit.onToggleFavorite(wallpaper),
-              onTap: () => cubit.onTapWallpaper(wallpaper),
-            ),
-          );
-        }, childCount: state.wallpapers.length),
+            ],
+          ),
+        );
+      case _AdRow():
+        return Padding(
+          key: ValueKey('native-${row.slot}'),
+          padding: const EdgeInsets.only(bottom: 14),
+          child: NativeAdTile(adUnitId: row.adUnitId),
+        );
+    }
+  }
+
+  Widget _animatedTile(HomeState state, Wallpaper wallpaper) {
+    return AspectRatio(
+      aspectRatio: 0.56,
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey(wallpaper.id),
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+        builder: (context, t, child) => Opacity(
+          opacity: t.clamp(0, 1),
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 24),
+            child: child,
+          ),
+        ),
+        child: WallpaperTile(
+          wallpaper: wallpaper,
+          isFavorite: state.isFavorite(wallpaper.id),
+          onToggleFavorite: () => cubit.onToggleFavorite(wallpaper),
+          onTap: () => cubit.onTapWallpaper(wallpaper),
+        ),
       ),
     );
   }
+}
+
+/// A row in the home feed: either a pair of wallpapers or a native ad card.
+sealed class _FeedRow {}
+
+class _WallpaperRow extends _FeedRow {
+  final Wallpaper first;
+  final Wallpaper? second;
+  _WallpaperRow({required this.first, this.second});
+}
+
+class _AdRow extends _FeedRow {
+  final String adUnitId;
+  final int slot;
+  _AdRow({required this.adUnitId, required this.slot});
 }
 
 class _HeaderBlock extends StatelessWidget {

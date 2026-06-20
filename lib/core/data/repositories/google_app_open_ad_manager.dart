@@ -24,7 +24,6 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
   AppOpenAd? _ad;
   DateTime? _loadedAt;
   DateTime? _loadStartedAt;
-  DateTime? _lastShownAt;
   bool _suppressNextResume = false;
   bool _listening = false;
   bool _isLoading = false;
@@ -96,11 +95,9 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
     }
     if (_guard.isShowing) return;
 
-    final last = _lastShownAt;
-    if (last != null &&
-        DateTime.now().difference(last) < config.resumeCooldown) {
-      return;
-    }
+    // Honour the cooldown against the last full-screen ad of ANY kind (shared
+    // guard), so an app-open never stacks right after an interstitial/rewarded.
+    if (_guard.withinCooldown(config.resumeCooldown)) return;
 
     // Expired or never loaded: drop any stale ad and (re)load for next time
     // instead of showing a stale/absent ad.
@@ -169,10 +166,7 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
     _loadedAt = null;
     final dismissed = Completer<void>();
     ad.fullScreenContentCallback = FullScreenContentCallback(
-      onAdShowedFullScreenContent: (_) {
-        _guard.markShown();
-        _lastShownAt = DateTime.now();
-      },
+      onAdShowedFullScreenContent: (_) => _guard.markShown(),
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _guard.markDismissed();

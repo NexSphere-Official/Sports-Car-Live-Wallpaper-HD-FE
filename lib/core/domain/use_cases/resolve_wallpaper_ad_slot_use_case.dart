@@ -4,6 +4,7 @@ import '../failures/settings_failure.dart';
 import '../models/ads_config.dart';
 import '../models/wallpaper_ad_gate.dart';
 import '../repositories/ad_policy_repository.dart';
+import '../stores/ads/ads_store.dart';
 import '../stores/app_config/app_config_store.dart';
 
 /// Determines a wallpaper's [WallpaperAdGate] for the detail page. Assigns and
@@ -12,16 +13,25 @@ import '../stores/app_config/app_config_store.dart';
 class ResolveWallpaperAdSlotUseCase {
   final AdPolicyRepository _adPolicyRepository;
   final AppConfigStore _appConfigStore;
+  final AdsStore _adsStore;
 
-  ResolveWallpaperAdSlotUseCase(this._adPolicyRepository, this._appConfigStore);
+  ResolveWallpaperAdSlotUseCase(
+    this._adPolicyRepository,
+    this._appConfigStore,
+    this._adsStore,
+  );
 
   Future<Either<SettingsFailure, WallpaperAdGate>> execute(
     String wallpaperId,
   ) async {
     final ads = _appConfigStore.config.ads;
 
-    // Ads off entirely → open gate, and don't burn a pattern slot.
-    if (!ads.enabled) return right(WallpaperAdGate.open());
+    // Ads off, or can't be served at runtime (consent denied / SDK not ready)
+    // → open gate, and don't burn a pattern slot. Avoids ever showing a locked
+    // wallpaper whose rewarded ad could never load.
+    if (!ads.enabled || !_adsStore.canRequestAds) {
+      return right(WallpaperAdGate.open());
+    }
 
     final slotResult = await _resolveSlot(wallpaperId, ads);
     return slotResult.fold(

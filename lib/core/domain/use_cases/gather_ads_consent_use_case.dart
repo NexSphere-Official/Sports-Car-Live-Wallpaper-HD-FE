@@ -4,24 +4,27 @@ import '../failures/ads_failure.dart';
 import '../repositories/ads_service.dart';
 import '../repositories/app_open_ad_manager.dart';
 import '../repositories/consent_manager.dart';
+import '../stores/ads/ads_store.dart';
 import '../stores/app_config/app_config_store.dart';
 
 /// Bootstraps ads during app launch: gathers UMP consent, then — when ads are
 /// enabled in Remote Config and consent permits — initializes the ads SDK and
-/// starts app-open ad management (preload + foreground shows). Reads
-/// [AppConfigStore], so it must run after the app config is fetched. Returns
-/// true when the SDK was initialized and ads may be requested.
+/// starts app-open ad management (preload + foreground shows). Records the
+/// resulting readiness in [AdsStore] so features can gate ad rendering on it.
+/// Reads [AppConfigStore], so it must run after the app config is fetched.
 class GatherAdsConsentUseCase {
   final ConsentManager _consentManager;
   final AdsService _adsService;
   final AppOpenAdManager _appOpenAdManager;
   final AppConfigStore _appConfigStore;
+  final AdsStore _adsStore;
 
   GatherAdsConsentUseCase(
     this._consentManager,
     this._adsService,
     this._appOpenAdManager,
     this._appConfigStore,
+    this._adsStore,
   );
 
   Future<Either<AdsFailure, bool>> execute() async {
@@ -35,12 +38,19 @@ class GatherAdsConsentUseCase {
     // Only initialize/request ads when Remote Config enables them and consent
     // permits ad requests.
     final ads = _appConfigStore.config.ads;
-    if (!ads.enabled || !canRequestAds) return right(false);
+    if (!ads.enabled || !canRequestAds) {
+      _adsStore.setCanRequestAds(false);
+      return right(false);
+    }
 
     final init = await _adsService.initialize();
     return init.fold(
-      (failure) async => left<AdsFailure, bool>(failure),
+      (failure) async {
+        _adsStore.setCanRequestAds(false);
+        return left<AdsFailure, bool>(failure);
+      },
       (_) async {
+        _adsStore.setCanRequestAds(true);
         // Begin preloading app-open ads (and resume-show wiring) now that the
         // SDK is ready, so a cold-start ad can be ready by the splash's end.
         if (ads.appOpen.isUsable) await _appOpenAdManager.start(ads.appOpen);
