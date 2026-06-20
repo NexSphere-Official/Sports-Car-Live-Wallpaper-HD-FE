@@ -6,19 +6,22 @@ import '../models/wallpaper_ad_gate.dart';
 import '../repositories/ad_policy_repository.dart';
 import '../stores/ads/ads_store.dart';
 import '../stores/app_config/app_config_store.dart';
+import '../stores/unlock/session_unlock_store.dart';
 
 /// Determines a wallpaper's [WallpaperAdGate] for the detail page. Assigns and
 /// persists an [AdSlotType] from the unlock pattern the first time a wallpaper
-/// is seen, then reflects its stored unlock state on subsequent opens.
+/// is seen, then reflects its current-session unlock state on subsequent opens.
 class ResolveWallpaperAdSlotUseCase {
   final AdPolicyRepository _adPolicyRepository;
   final AppConfigStore _appConfigStore;
   final AdsStore _adsStore;
+  final SessionUnlockStore _sessionUnlockStore;
 
   ResolveWallpaperAdSlotUseCase(
     this._adPolicyRepository,
     this._appConfigStore,
     this._adsStore,
+    this._sessionUnlockStore,
   );
 
   Future<Either<SettingsFailure, WallpaperAdGate>> execute(
@@ -53,10 +56,13 @@ class ResolveWallpaperAdSlotUseCase {
           );
         }
 
-        final unlocked = await _adPolicyRepository.isUnlocked(wallpaperId);
-        return unlocked.map(
-          (isUnlocked) =>
-              WallpaperAdGate(slot: AdSlotType.rewarded, isUnlocked: isUnlocked),
+        // Unlock state is session-only: a wallpaper unlocked earlier this run
+        // stays unlocked, but a relaunch starts it locked again.
+        return right<SettingsFailure, WallpaperAdGate>(
+          WallpaperAdGate(
+            slot: AdSlotType.rewarded,
+            isUnlocked: _sessionUnlockStore.isUnlocked(wallpaperId),
+          ),
         );
       },
     );

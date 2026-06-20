@@ -30,6 +30,7 @@ import '../core/domain/stores/ads/ads_store.dart';
 import '../core/domain/stores/app_config/app_config_store.dart';
 import '../core/domain/stores/favorites/favorites_store.dart';
 import '../core/domain/stores/theme/theme_store.dart';
+import '../core/domain/stores/unlock/session_unlock_store.dart';
 import '../core/domain/use_cases/gather_ads_consent_use_case.dart';
 import '../core/domain/use_cases/get_app_config_use_case.dart';
 import '../core/domain/use_cases/preload_rewarded_ad_use_case.dart';
@@ -98,6 +99,7 @@ Future<void> init() async {
   getIt.registerLazySingleton(() => FavoritesStore());
   getIt.registerLazySingleton(() => AppConfigStore());
   getIt.registerLazySingleton(() => AdsStore());
+  getIt.registerLazySingleton(() => SessionUnlockStore());
 
   // --- Repositories ---
   getIt.registerLazySingleton<AppConfigRepository>(
@@ -144,7 +146,7 @@ Future<void> init() async {
   );
   getIt.registerSingleton(SuppressNextAppOpenAdUseCase(getIt()));
   getIt.registerSingleton(
-    ResolveWallpaperAdSlotUseCase(getIt(), getIt(), getIt()),
+    ResolveWallpaperAdSlotUseCase(getIt(), getIt(), getIt(), getIt()),
   );
   getIt.registerSingleton(
     UnlockWallpaperUseCase(getIt(), getIt(), getIt(), getIt()),

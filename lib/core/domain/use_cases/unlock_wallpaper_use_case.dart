@@ -1,26 +1,27 @@
 import 'package:dartz/dartz.dart';
 
 import '../failures/ads_failure.dart';
-import '../repositories/ad_policy_repository.dart';
 import '../repositories/ads_service.dart';
 import '../stores/ads/ads_store.dart';
 import '../stores/app_config/app_config_store.dart';
+import '../stores/unlock/session_unlock_store.dart';
 
 /// Shows a rewarded ad to unlock a locked wallpaper. On an earned reward the
-/// unlock is persisted. Returns whether the wallpaper is now unlocked
-/// (`right(true)` earned, `right(false)` dismissed without reward); `left` on a
-/// load/show error or if the unlock could not be persisted.
+/// unlock is recorded for the current session only (see [SessionUnlockStore]) —
+/// it is not persisted, so a relaunch re-locks the wallpaper. Returns whether
+/// the wallpaper is now unlocked (`right(true)` earned, `right(false)` dismissed
+/// without reward); `left` on a load/show error.
 class UnlockWallpaperUseCase {
   final AdsService _adsService;
-  final AdPolicyRepository _adPolicyRepository;
   final AppConfigStore _appConfigStore;
   final AdsStore _adsStore;
+  final SessionUnlockStore _sessionUnlockStore;
 
   UnlockWallpaperUseCase(
     this._adsService,
-    this._adPolicyRepository,
     this._appConfigStore,
     this._adsStore,
+    this._sessionUnlockStore,
   );
 
   Future<Either<AdsFailure, bool>> execute(String wallpaperId) async {
@@ -33,19 +34,13 @@ class UnlockWallpaperUseCase {
       _appConfigStore.config.ads.rewarded.adUnitId,
     );
     return result.fold(
-      (failure) async => left<AdsFailure, bool>(failure),
-      (earned) async {
+      (failure) => left<AdsFailure, bool>(failure),
+      (earned) {
         if (!earned) return right<AdsFailure, bool>(false);
-        // Reward earned — persist the unlock. Surface (don't swallow) a
-        // persistence failure so the user isn't told it's unlocked when it
-        // won't survive a relaunch.
-        final saved = await _adPolicyRepository.markUnlocked(wallpaperId);
-        return saved.fold(
-          (_) => left<AdsFailure, bool>(
-            const AdsFailure.unknown('failed to persist unlock'),
-          ),
-          (_) => right<AdsFailure, bool>(true),
-        );
+        // Reward earned — record the unlock for this session only. Not
+        // persisted, so the wallpaper re-locks on the next app launch.
+        _sessionUnlockStore.markUnlocked(wallpaperId);
+        return right<AdsFailure, bool>(true);
       },
     );
   }

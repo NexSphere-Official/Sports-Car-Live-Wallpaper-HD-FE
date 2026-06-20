@@ -4,7 +4,10 @@ import '../failures/settings_failure.dart';
 import '../models/ads_config.dart';
 
 /// Persists per-wallpaper ad policy: which [AdSlotType] each wallpaper was
-/// assigned (stable across opens) and which wallpapers the user has unlocked.
+/// assigned (stable across opens).
+///
+/// Unlock state is intentionally NOT persisted here — it lives in
+/// [SessionUnlockStore] and lasts only for the current app session.
 abstract class AdPolicyRepository {
   /// The slot type previously assigned to a wallpaper, or null if not yet seen.
   Future<Either<SettingsFailure, AdSlotType?>> assignedSlot(String wallpaperId);
@@ -18,10 +21,4 @@ abstract class AdPolicyRepository {
     String wallpaperId,
     AdSlotType slot,
   );
-
-  /// Whether the wallpaper has been unlocked (rewarded ad already watched).
-  Future<Either<SettingsFailure, bool>> isUnlocked(String wallpaperId);
-
-  /// Mark the wallpaper as permanently unlocked.
-  Future<Either<SettingsFailure, Unit>> markUnlocked(String wallpaperId);
 }
