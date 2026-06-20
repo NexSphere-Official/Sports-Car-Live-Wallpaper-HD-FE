@@ -76,6 +76,16 @@ class NativeWallpaperSetterRepository implements WallpaperSetterRepository {
     }
   }
 
+  @override
+  Future<Either<SetWallpaperFailure, bool>> isLiveWallpaperActive() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isLiveWallpaperSet');
+      return right(result == true);
+    } catch (ex) {
+      return left(SetWallpaperFailure.unknown(ex));
+    }
+  }
+
   Future<String> _downloadFile(
     String url, {
     required String prefix,

@@ -48,6 +48,7 @@ import '../core/domain/use_cases/get_privacy_policy_url_use_case.dart';
 import '../core/domain/use_cases/is_privacy_options_required_use_case.dart';
 import '../core/domain/use_cases/show_privacy_options_form_use_case.dart';
 import '../core/domain/use_cases/get_wallpaper_use_case.dart';
+import '../core/domain/use_cases/is_live_wallpaper_active_use_case.dart';
 import '../core/domain/use_cases/get_wallpapers_use_case.dart';
 import '../core/domain/use_cases/rate_app_use_case.dart';
 import '../core/domain/use_cases/share_app_use_case.dart';
@@ -167,6 +168,7 @@ Future<void> init() async {
   getIt.registerSingleton(GetThemeModeUseCase(getIt(), getIt()));
   getIt.registerSingleton(SetThemeModeUseCase(getIt(), getIt()));
   getIt.registerSingleton(SetWallpaperUseCase(getIt()));
+  getIt.registerSingleton(IsLiveWallpaperActiveUseCase(getIt()));
   getIt.registerSingleton(ClearCacheUseCase(getIt()));
   getIt.registerSingleton(ClearFavoritesUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetAppVersionUseCase(getIt()));
@@ -212,6 +214,7 @@ Future<void> init() async {
   >(
     (params, _) => WallpaperDetailCubit(
       params,
+      getIt(),
       getIt(),
       getIt(),
       getIt(),

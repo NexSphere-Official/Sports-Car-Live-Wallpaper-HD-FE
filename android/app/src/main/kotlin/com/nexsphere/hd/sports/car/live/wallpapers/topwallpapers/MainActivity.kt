@@ -72,9 +72,26 @@ class MainActivity : FlutterActivity() {
           }
         }
 
+        "isLiveWallpaperSet" -> {
+          runWallpaperTask(result, "IS_LIVE_WALLPAPER_SET_FAILED") {
+            isOurLiveWallpaperSet()
+          }
+        }
+
         else -> result.notImplemented()
       }
     }
+  }
+
+  /// Whether the device's currently-active live wallpaper is OUR service — used
+  /// to confirm the user actually applied it from the system preview.
+  private fun isOurLiveWallpaperSet(): Boolean {
+    val info = WallpaperManager.getInstance(applicationContext).wallpaperInfo
+      ?: return false
+    return info.component == ComponentName(
+      this,
+      VideoLiveWallpaperService::class.java,
+    )
   }
 
   override fun onDestroy() {

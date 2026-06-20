@@ -1,8 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../core/domain/models/wallpaper.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import 'favorite_button.dart';
 import 'live_tag.dart';
 
 class WallpaperTile extends StatefulWidget {
@@ -66,46 +66,12 @@ class _WallpaperTileState extends State<WallpaperTile> {
               Positioned(
                 top: 8,
                 right: 8,
-                child: _FavoriteButton(
+                child: FavoriteButton(
                   isFavorite: widget.isFavorite,
                   onTap: widget.onToggleFavorite,
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FavoriteButton extends StatelessWidget {
-  const _FavoriteButton({required this.isFavorite, required this.onTap});
-
-  final bool isFavorite;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.35),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-        ),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 220),
-          transitionBuilder: (child, animation) =>
-              ScaleTransition(scale: animation, child: child),
-          child: Icon(
-            isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            key: ValueKey(isFavorite),
-            size: 18,
-            color: isFavorite ? AppColors.accent : Colors.white,
           ),
         ),
       ),

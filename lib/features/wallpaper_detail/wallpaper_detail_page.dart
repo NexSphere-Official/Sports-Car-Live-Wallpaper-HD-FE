@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -109,6 +111,9 @@ class _WallpaperDetailPageState extends State<WallpaperDetailPage>
                   ),
                 ),
               ),
+              // Preview mode: a self-fading hint so the immersive view isn't a
+              // dead end. Taps pass through to the toggle-chrome detector below.
+              if (!state.showChrome) const _PreviewHint(),
             ],
           );
         },
@@ -172,6 +177,84 @@ class _Scrim extends StatelessWidget {
             Colors.transparent,
             AppColors.darkBg.withValues(alpha: 0.85),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A glass pill shown on entering preview that fades itself out, telling the
+/// user how to leave the immersive view. Pointer-transparent so a tap anywhere
+/// still toggles the chrome back on.
+class _PreviewHint extends StatefulWidget {
+  const _PreviewHint();
+
+  @override
+  State<_PreviewHint> createState() => _PreviewHintState();
+}
+
+class _PreviewHintState extends State<_PreviewHint> {
+  bool _visible = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _visible = true);
+    });
+    _timer = Timer(const Duration(milliseconds: 2600), () {
+      if (mounted) setState(() => _visible = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 14),
+          child: AnimatedOpacity(
+            opacity: _visible ? 1 : 0,
+            duration: Duration(milliseconds: _visible ? 300 : 450),
+            curve: Curves.easeOut,
+            child: IgnorePointer(
+              child: GlassPanel(
+                borderRadius: 100,
+                blur: 16,
+                fill: Colors.white.withValues(alpha: 0.12),
+                border: Colors.white.withValues(alpha: 0.22),
+                padding: const EdgeInsets.fromLTRB(14, 9, 16, 9),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.touch_app_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Tap anywhere to exit preview',
+                      style: GoogleFonts.chakraPetch(
+                        color: Colors.white,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -345,14 +428,14 @@ class _ApplyButton extends StatelessWidget {
                 children: [
                   Icon(
                     isLocked
-                        ? Icons.lock_open_rounded
+                        ? Icons.play_circle_fill_rounded
                         : Icons.wallpaper_rounded,
                     color: Colors.white,
                     size: 20,
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    isLocked ? 'UNLOCK WALLPAPER' : 'SET WALLPAPER',
+                    isLocked ? 'WATCH TO UNLOCK' : 'SET WALLPAPER',
                     style: GoogleFonts.chakraPetch(
                       color: Colors.white,
                       fontSize: 14,

@@ -12,7 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/bouncing_dots.dart';
 import '../../widgets/glass_panel.dart';
 import '../../widgets/native_ad_tile.dart';
-import '../../widgets/shimmer_loading.dart';
+import '../../widgets/wallpaper_grid_shimmer.dart';
 import '../../widgets/wallpaper_tile.dart';
 
 class HomePage extends StatefulWidget {

@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/domain/models/wallpaper_surface.dart';
+import '../../core/domain/use_cases/is_live_wallpaper_active_use_case.dart';
 import '../../core/domain/use_cases/preload_rewarded_ad_use_case.dart';
 import '../../core/domain/use_cases/resolve_wallpaper_ad_slot_use_case.dart';
 import '../../core/domain/use_cases/set_wallpaper_use_case.dart';
@@ -17,6 +18,7 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
   final UnlockWallpaperUseCase _unlockWallpaperUseCase;
   final ShowApplyInterstitialUseCase _showApplyInterstitialUseCase;
   final PreloadRewardedAdUseCase _preloadRewardedAdUseCase;
+  final IsLiveWallpaperActiveUseCase _isLiveWallpaperActiveUseCase;
   final SuppressNextAppOpenAdUseCase _suppressNextAppOpenAdUseCase;
   final WallpaperDetailNavigator navigator;
 
@@ -27,6 +29,7 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
     this._unlockWallpaperUseCase,
     this._showApplyInterstitialUseCase,
     this._preloadRewardedAdUseCase,
+    this._isLiveWallpaperActiveUseCase,
     this._suppressNextAppOpenAdUseCase,
     this.navigator,
   ) : super(WallpaperDetailState.initial(initialParams: initialParams));
@@ -51,6 +54,8 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
   Future<void> onTapUnlock() async {
     if (state.isPreparingAd || state.isSettingWallpaper) return;
 
+    // The "Watch to unlock" button is itself the opt-in/value-exchange
+    // disclosure, so go straight to the rewarded ad.
     emit(state.copyWith(isPreparingAd: true));
     final result = await _unlockWallpaperUseCase.execute(state.wallpaper.id);
     emit(state.copyWith(isPreparingAd: false));
@@ -130,15 +135,22 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
     );
   }
 
-  /// The app returned to the foreground. If we'd opened the live-wallpaper
-  /// preview, confirm the outcome with a popup now that the user is back.
-  void onAppResumed() {
+  /// The app returned to the foreground after the live-wallpaper preview. Show a
+  /// success snackbar only if our live wallpaper is now actually active; if the
+  /// user backed out without applying it, show nothing.
+  Future<void> onAppResumed() async {
     if (!state.awaitingLiveResult) return;
     emit(state.copyWith(awaitingLiveResult: false));
-    navigator.showInfo(
-      'Live wallpaper',
-      "Your live wallpaper is ready. If you confirmed it in the preview, "
-          "it's now set on your device.",
+
+    final result = await _isLiveWallpaperActiveUseCase.execute();
+    result.fold(
+      // Couldn't determine the outcome — stay silent rather than guess.
+      (_) {},
+      (isActive) {
+        if (isActive) {
+          navigator.showSnackbar('Live wallpaper applied to your device.');
+        }
+      },
     );
   }
 

@@ -116,31 +116,23 @@ class _NativeAdTileState extends State<NativeAdTile> {
     if (_failed) return const SizedBox.shrink();
 
     final ad = _nativeAd;
+    final palette = context.palette;
+    // While loading, hold the reserved height with a themed placeholder box so
+    // the ad doesn't push the feed when it appears.
     final content = (_isLoaded && ad != null)
         ? AdWidget(ad: ad)
-        : _Placeholder(palette: context.palette);
+        : DecoratedBox(
+            decoration: BoxDecoration(
+              color: palette.surfaceHigh,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: palette.border),
+            ),
+          );
 
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: _maxWidth),
         child: SizedBox(height: _height, width: double.infinity, child: content),
-      ),
-    );
-  }
-}
-
-class _Placeholder extends StatelessWidget {
-  const _Placeholder({required this.palette});
-
-  final AppPalette palette;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.surfaceHigh,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: palette.border),
       ),
     );
   }

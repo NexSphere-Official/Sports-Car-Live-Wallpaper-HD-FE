@@ -8,4 +8,9 @@ abstract class WallpaperSetterRepository {
     WallpaperSurface surface,
   );
   Future<Either<SetWallpaperFailure, Unit>> setLive(String videoUrl);
+
+  /// Whether this app's live wallpaper is the device's currently-active one —
+  /// used after returning from the system live-wallpaper preview to confirm the
+  /// user actually applied it.
+  Future<Either<SetWallpaperFailure, bool>> isLiveWallpaperActive();
 }

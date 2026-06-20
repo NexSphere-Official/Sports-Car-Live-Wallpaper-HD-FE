@@ -9,6 +9,10 @@ class AppColors {
   static const Color accent = Color(0xFFFF2D3A);
   static const Color accentSoft = Color(0xFFFF5C66);
 
+  // Dashboard caution lamp — used for attention/error feedback so it never
+  // competes with the tail-light-red accent used for success.
+  static const Color caution = Color(0xFFFFB020);
+
   // Dark — underground garage.
   static const Color darkBg = Color(0xFF0A0A0C);
   static const Color darkSurface = Color(0xFF141417);
