@@ -27,9 +27,8 @@ enum AdSlotType {
 /// Remote Config `app_config` value. Every unit id, toggle, interval and
 /// cooldown lives here so ads can be tuned or disabled without an app release.
 ///
-/// [AdsConfig.empty] holds the built-in defaults (Google's Android test ad
-/// setup) used when Remote Config has not supplied a value; live config from
-/// the console overlays these.
+/// [AdsConfig.empty] holds the built-in production defaults used when Remote
+/// Config has not supplied a value; live config from the console overlays these.
 class AdsConfig extends Equatable {
   /// Master kill switch. When false, no ads of any kind are requested or shown.
   final bool enabled;
@@ -51,7 +50,7 @@ class AdsConfig extends Equatable {
     required this.unlockPattern,
   });
 
-  /// Default ad configuration (Google's official Android test ad unit ids).
+  /// Default ad configuration (production Android ad unit ids).
   factory AdsConfig.empty() => AdsConfig(
     enabled: true,
     appOpen: AppOpenAdConfig.empty(),
@@ -128,7 +127,7 @@ class AppOpenAdConfig extends Equatable {
 
   factory AppOpenAdConfig.empty() => const AppOpenAdConfig(
     enabled: true,
-    adUnitId: 'ca-app-pub-3940256099942544/9257395921',
+    adUnitId: 'ca-app-pub-3891353847321850/8258418489',
     onColdStart: true,
     onResume: true,
     resumeCooldown: Duration(seconds: 30),
@@ -183,7 +182,7 @@ class InterstitialAdConfig extends Equatable {
 
   factory InterstitialAdConfig.empty() => const InterstitialAdConfig(
     enabled: true,
-    adUnitId: 'ca-app-pub-3940256099942544/1033173712',
+    adUnitId: 'ca-app-pub-3891353847321850/4319173471',
     onBackFromSaved: true,
     cooldown: Duration(seconds: 15),
   );
@@ -214,7 +213,7 @@ class RewardedAdConfig extends Equatable {
 
   factory RewardedAdConfig.empty() => const RewardedAdConfig(
     enabled: true,
-    adUnitId: 'ca-app-pub-3940256099942544/5224354917',
+    adUnitId: 'ca-app-pub-3891353847321850/8582118041',
   );
 
   bool get isUsable => enabled && adUnitId.isNotEmpty;
@@ -244,7 +243,7 @@ class NativeAdConfig extends Equatable {
 
   factory NativeAdConfig.empty() => const NativeAdConfig(
     enabled: true,
-    adUnitId: 'ca-app-pub-3940256099942544/2247696110',
+    adUnitId: 'ca-app-pub-3891353847321850/5006824793',
     gridInterval: 8,
   );
 

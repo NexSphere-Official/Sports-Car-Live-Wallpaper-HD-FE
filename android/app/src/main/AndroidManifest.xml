@@ -43,11 +43,10 @@
                 android:name="android.service.wallpaper"
                 android:resource="@xml/live_wallpaper" />
         </service>
-        <!-- AdMob App ID (Google's official Android test app id). Replace with
-             the production app id before release. -->
+        <!-- AdMob App ID (production). -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-3891353847321850~6809928842" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
