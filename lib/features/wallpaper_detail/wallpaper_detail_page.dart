@@ -95,8 +95,12 @@ class _WallpaperDetailPageState extends State<WallpaperDetailPage>
                             const Spacer(),
                             _ActionBar(
                               onPreview: cubit.onTapPreview,
-                              onApply: cubit.onTapApply,
-                              isApplying: state.isSettingWallpaper,
+                              onPrimary: state.isLocked
+                                  ? cubit.onTapUnlock
+                                  : cubit.onTapApply,
+                              isLocked: state.isLocked,
+                              isBusy: state.isSettingWallpaper ||
+                                  state.isPreparingAd,
                             ),
                           ],
                         ),
@@ -218,13 +222,15 @@ class _CircleButton extends StatelessWidget {
 class _ActionBar extends StatelessWidget {
   const _ActionBar({
     required this.onPreview,
-    required this.onApply,
-    required this.isApplying,
+    required this.onPrimary,
+    required this.isLocked,
+    required this.isBusy,
   });
 
   final VoidCallback onPreview;
-  final VoidCallback onApply;
-  final bool isApplying;
+  final VoidCallback onPrimary;
+  final bool isLocked;
+  final bool isBusy;
 
   @override
   Widget build(BuildContext context) {
@@ -236,7 +242,11 @@ class _ActionBar extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             flex: 2,
-            child: _ApplyButton(onTap: onApply, isLoading: isApplying),
+            child: _ApplyButton(
+              onTap: onPrimary,
+              isLoading: isBusy,
+              isLocked: isLocked,
+            ),
           ),
         ],
       ),
@@ -287,10 +297,15 @@ class _PreviewButton extends StatelessWidget {
 }
 
 class _ApplyButton extends StatelessWidget {
-  const _ApplyButton({required this.onTap, required this.isLoading});
+  const _ApplyButton({
+    required this.onTap,
+    required this.isLoading,
+    required this.isLocked,
+  });
 
   final VoidCallback onTap;
   final bool isLoading;
+  final bool isLocked;
 
   @override
   Widget build(BuildContext context) {
@@ -328,14 +343,16 @@ class _ApplyButton extends StatelessWidget {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.wallpaper_rounded,
+                  Icon(
+                    isLocked
+                        ? Icons.lock_open_rounded
+                        : Icons.wallpaper_rounded,
                     color: Colors.white,
                     size: 20,
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'SET WALLPAPER',
+                    isLocked ? 'UNLOCK WALLPAPER' : 'SET WALLPAPER',
                     style: GoogleFonts.chakraPetch(
                       color: Colors.white,
                       fontSize: 14,

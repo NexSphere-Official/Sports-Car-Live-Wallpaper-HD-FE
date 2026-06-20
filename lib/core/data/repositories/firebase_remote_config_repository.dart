@@ -15,11 +15,6 @@ class FirebaseRemoteConfigRepository implements AppConfigRepository {
   /// Remote Config parameter key (published in the Firebase console).
   static const _appConfigKey = 'app_config';
 
-  /// Fallback used only when the device has never reached Remote Config.
-  /// The live value is published server-side and overrides this.
-  static const _fallbackAppConfig =
-      '{"api_base_url":"https://sports-car-wallpaper-api.nex-sphere.dev"}';
-
   @override
   Future<Either<AppConfigFailure, AppConfig>> fetchAppConfig() async {
     try {
@@ -29,26 +24,26 @@ class FirebaseRemoteConfigRepository implements AppConfigRepository {
           minimumFetchInterval: const Duration(hours: 1),
         ),
       );
-      await _remoteConfig.setDefaults(const {
-        _appConfigKey: _fallbackAppConfig,
-      });
       await _remoteConfig.fetchAndActivate();
     } catch (ex) {
-      // Network/fetch failure: fall back to whatever is cached or the default
-      // below rather than blocking app startup.
+      // Network/fetch failure: fall back to whatever is cached, or the built-in
+      // defaults in AppConfig.empty(), rather than blocking app startup.
       return _readConfig(fetchError: ex);
     }
     return _readConfig();
   }
 
   Either<AppConfigFailure, AppConfig> _readConfig({Object? fetchError}) {
+    // Never reached Remote Config (and nothing cached): use the defaults baked
+    // into AppConfig.empty(). The API base URL stays empty by design.
+    final raw = _remoteConfig.getString(_appConfigKey);
+    if (raw.isEmpty) return right(AppConfig.empty());
+
     try {
-      final raw = _remoteConfig.getString(_appConfigKey);
-      final source = raw.isNotEmpty ? raw : _fallbackAppConfig;
-      final decoded = jsonDecode(source) as Map<String, dynamic>;
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
       return right(AppConfigJson.fromJson(decoded).toDomain());
     } catch (ex) {
-      // Could not even parse the fallback — surface a typed failure.
+      // Value present but unparseable — surface a typed failure.
       return left(
         fetchError != null
             ? AppConfigFailure.fetch(fetchError)

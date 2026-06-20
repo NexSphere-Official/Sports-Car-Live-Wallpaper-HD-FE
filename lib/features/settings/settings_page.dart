@@ -66,8 +66,15 @@ class _SettingsPageState extends State<SettingsPage> {
                             icon: Icons.privacy_tip_rounded,
                             label: 'Privacy policy',
                             onTap: cubit.onTapPrivacy,
-                            showDivider: false,
+                            showDivider: state.isPrivacyOptionsRequired,
                           ),
+                          if (state.isPrivacyOptionsRequired)
+                            _SettingRow(
+                              icon: Icons.tune_rounded,
+                              label: 'Privacy options',
+                              onTap: cubit.onTapPrivacyOptions,
+                              showDivider: false,
+                            ),
                         ],
                       ),
                       const SizedBox(height: 26),

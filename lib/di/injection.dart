@@ -5,14 +5,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/data/repositories/firebase_remote_config_repository.dart';
 import '../core/data/repositories/flutter_cache_repository.dart';
+import '../core/data/repositories/full_screen_ad_guard.dart';
+import '../core/data/repositories/google_app_open_ad_manager.dart';
+import '../core/data/repositories/google_mobile_ads_service.dart';
 import '../core/data/repositories/platform_app_info_repository.dart';
 import '../core/data/repositories/http_wallpaper_repository.dart';
 import '../core/data/repositories/native_wallpaper_setter_repository.dart';
+import '../core/data/repositories/shared_prefs_ad_policy_repository.dart';
 import '../core/data/repositories/shared_prefs_favorites_repository.dart';
 import '../core/data/repositories/shared_prefs_settings_repository.dart';
+import '../core/data/repositories/ump_consent_manager.dart';
+import '../core/domain/repositories/ad_policy_repository.dart';
+import '../core/domain/repositories/ads_service.dart';
 import '../core/domain/repositories/app_config_repository.dart';
+import '../core/domain/repositories/app_open_ad_manager.dart';
 import '../core/domain/repositories/app_info_repository.dart';
 import '../core/domain/repositories/cache_repository.dart';
+import '../core/domain/repositories/consent_manager.dart';
 import '../core/domain/repositories/favorites_repository.dart';
 import '../core/domain/repositories/settings_repository.dart';
 import '../core/domain/repositories/wallpaper_repository.dart';
@@ -20,11 +29,19 @@ import '../core/domain/repositories/wallpaper_setter_repository.dart';
 import '../core/domain/stores/app_config/app_config_store.dart';
 import '../core/domain/stores/favorites/favorites_store.dart';
 import '../core/domain/stores/theme/theme_store.dart';
+import '../core/domain/use_cases/gather_ads_consent_use_case.dart';
 import '../core/domain/use_cases/get_app_config_use_case.dart';
+import '../core/domain/use_cases/resolve_wallpaper_ad_slot_use_case.dart';
+import '../core/domain/use_cases/show_apply_interstitial_use_case.dart';
+import '../core/domain/use_cases/show_cold_start_app_open_ad_use_case.dart';
+import '../core/domain/use_cases/suppress_next_app_open_ad_use_case.dart';
+import '../core/domain/use_cases/unlock_wallpaper_use_case.dart';
 import '../core/domain/use_cases/get_app_version_use_case.dart';
 import '../core/domain/use_cases/get_favorites_use_case.dart';
 import '../core/domain/use_cases/get_theme_mode_use_case.dart';
 import '../core/domain/use_cases/get_privacy_policy_url_use_case.dart';
+import '../core/domain/use_cases/is_privacy_options_required_use_case.dart';
+import '../core/domain/use_cases/show_privacy_options_form_use_case.dart';
 import '../core/domain/use_cases/get_wallpaper_use_case.dart';
 import '../core/domain/use_cases/get_wallpapers_use_case.dart';
 import '../core/domain/use_cases/rate_app_use_case.dart';
@@ -96,8 +113,31 @@ Future<void> init() async {
     () => PlatformAppInfoRepository(),
   );
 
+  // --- Ads ---
+  getIt.registerLazySingleton(() => FullScreenAdGuard());
+  getIt.registerLazySingleton<ConsentManager>(() => UmpConsentManager());
+  getIt.registerLazySingleton<AdsService>(
+    () => GoogleMobileAdsService(getIt()),
+  );
+  getIt.registerLazySingleton<AppOpenAdManager>(
+    () => GoogleAppOpenAdManager(getIt()),
+  );
+  getIt.registerLazySingleton<AdPolicyRepository>(
+    () => SharedPrefsAdPolicyRepository(getIt()),
+  );
+
   // --- Use Cases ---
   getIt.registerSingleton(GetAppConfigUseCase(getIt(), getIt()));
+  getIt.registerSingleton(
+    GatherAdsConsentUseCase(getIt(), getIt(), getIt(), getIt()),
+  );
+  getIt.registerSingleton(ShowColdStartAppOpenAdUseCase(getIt()));
+  getIt.registerSingleton(SuppressNextAppOpenAdUseCase(getIt()));
+  getIt.registerSingleton(
+    ResolveWallpaperAdSlotUseCase(getIt(), getIt()),
+  );
+  getIt.registerSingleton(UnlockWallpaperUseCase(getIt(), getIt(), getIt()));
+  getIt.registerSingleton(ShowApplyInterstitialUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetWallpapersUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetWallpaperUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetFavoritesUseCase(getIt(), getIt()));
@@ -111,11 +151,21 @@ Future<void> init() async {
   getIt.registerSingleton(ShareAppUseCase(getIt()));
   getIt.registerSingleton(RateAppUseCase(getIt()));
   getIt.registerSingleton(GetPrivacyPolicyUrlUseCase(getIt()));
+  getIt.registerSingleton(IsPrivacyOptionsRequiredUseCase(getIt()));
+  getIt.registerSingleton(ShowPrivacyOptionsFormUseCase(getIt()));
 
   // --- Feature: splash ---
   getIt.registerFactory(() => SplashNavigator(getIt()));
   getIt.registerFactoryParam<SplashCubit, SplashInitialParams, void>(
-    (params, _) => SplashCubit(params, getIt(), getIt(), getIt(), getIt()),
+    (params, _) => SplashCubit(
+      params,
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+    ),
   );
   getIt.registerFactoryParam<SplashPage, SplashInitialParams, void>(
     (params, _) => SplashPage(cubit: getIt(param1: params)),
@@ -136,7 +186,17 @@ Future<void> init() async {
     WallpaperDetailCubit,
     WallpaperDetailInitialParams,
     void
-  >((params, _) => WallpaperDetailCubit(params, getIt(), getIt()));
+  >(
+    (params, _) => WallpaperDetailCubit(
+      params,
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+    ),
+  );
   getIt.registerFactoryParam<
     WallpaperDetailPage,
     WallpaperDetailInitialParams,
@@ -157,6 +217,9 @@ Future<void> init() async {
   getIt.registerFactoryParam<SettingsCubit, SettingsInitialParams, void>(
     (params, _) => SettingsCubit(
       params,
+      getIt(),
+      getIt(),
+      getIt(),
       getIt(),
       getIt(),
       getIt(),

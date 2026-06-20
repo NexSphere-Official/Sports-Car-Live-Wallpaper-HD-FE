@@ -10,9 +10,12 @@ import '../../core/domain/use_cases/clear_cache_use_case.dart';
 import '../../core/domain/use_cases/clear_favorites_use_case.dart';
 import '../../core/domain/use_cases/get_app_version_use_case.dart';
 import '../../core/domain/use_cases/get_privacy_policy_url_use_case.dart';
+import '../../core/domain/use_cases/is_privacy_options_required_use_case.dart';
 import '../../core/domain/use_cases/rate_app_use_case.dart';
 import '../../core/domain/use_cases/set_theme_mode_use_case.dart';
 import '../../core/domain/use_cases/share_app_use_case.dart';
+import '../../core/domain/use_cases/show_privacy_options_form_use_case.dart';
+import '../../core/domain/use_cases/suppress_next_app_open_ad_use_case.dart';
 import '../privacy_policy/privacy_policy_initial_params.dart';
 import 'settings_initial_params.dart';
 import 'settings_navigator.dart';
@@ -27,6 +30,9 @@ class SettingsCubit extends Cubit<SettingsState> {
   final ShareAppUseCase _shareAppUseCase;
   final RateAppUseCase _rateAppUseCase;
   final GetPrivacyPolicyUrlUseCase _getPrivacyPolicyUrlUseCase;
+  final IsPrivacyOptionsRequiredUseCase _isPrivacyOptionsRequiredUseCase;
+  final ShowPrivacyOptionsFormUseCase _showPrivacyOptionsFormUseCase;
+  final SuppressNextAppOpenAdUseCase _suppressNextAppOpenAdUseCase;
   final ThemeStore _themeStore;
   final FavoritesStore _favoritesStore;
   final SettingsNavigator navigator;
@@ -43,6 +49,9 @@ class SettingsCubit extends Cubit<SettingsState> {
     this._shareAppUseCase,
     this._rateAppUseCase,
     this._getPrivacyPolicyUrlUseCase,
+    this._isPrivacyOptionsRequiredUseCase,
+    this._showPrivacyOptionsFormUseCase,
+    this._suppressNextAppOpenAdUseCase,
     this._themeStore,
     this._favoritesStore,
     this.navigator,
@@ -56,6 +65,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       ),
     );
     _loadVersion();
+    _loadPrivacyOptions();
     _themeSub = _themeStore.stream.listen(
       (s) => emit(state.copyWith(mode: s.mode)),
     );
@@ -69,12 +79,32 @@ class SettingsCubit extends Cubit<SettingsState> {
     result.fold((_) {}, (version) => emit(state.copyWith(version: version)));
   }
 
+  Future<void> _loadPrivacyOptions() async {
+    final result = await _isPrivacyOptionsRequiredUseCase.execute();
+    final required = result.getOrElse(() => false);
+    emit(state.copyWith(isPrivacyOptionsRequired: required));
+  }
+
+  Future<void> onTapPrivacyOptions() async {
+    await _showPrivacyOptionsFormUseCase.execute();
+    // The requirement can change after the user updates choices.
+    await _loadPrivacyOptions();
+  }
+
   Future<void> onSelectMode(AppThemeMode mode) =>
       _setThemeModeUseCase.execute(mode);
 
-  Future<void> onTapShare() => _shareAppUseCase.execute();
+  Future<void> onTapShare() async {
+    // The share sheet backgrounds the app; don't pop an app-open ad on return.
+    await _suppressNextAppOpenAdUseCase.execute();
+    await _shareAppUseCase.execute();
+  }
 
-  Future<void> onTapRate() => _rateAppUseCase.execute();
+  Future<void> onTapRate() async {
+    // Opening the store listing backgrounds the app; suppress the resume ad.
+    await _suppressNextAppOpenAdUseCase.execute();
+    await _rateAppUseCase.execute();
+  }
 
   Future<void> onTapPrivacy() async {
     final result = await _getPrivacyPolicyUrlUseCase.execute();

@@ -272,6 +272,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.7.0"
+  gma_mediation_liftoffmonetize:
+    dependency: "direct main"
+    description:
+      name: gma_mediation_liftoffmonetize
+      sha256: c3ed8a92a717f477cf5909a7f4ce0c96dc7ff86427d84ef6716ab590035345c9
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.0"
+  gma_mediation_meta:
+    dependency: "direct main"
+    description:
+      name: gma_mediation_meta
+      sha256: d65dd79c51f6161aaac8c9b07f9a921f73a560d275a15106f440be2016c766bc
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.2"
+  gma_mediation_unity:
+    dependency: "direct main"
+    description:
+      name: gma_mediation_unity
+      sha256: f2326489fa598d4ff0744509df303664f87a6f5f46ab8dfbed81b4c823100df2
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.8.0"
   google_fonts:
     dependency: "direct main"
     description:
@@ -280,6 +304,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.3.3"
+  google_mobile_ads:
+    dependency: "direct main"
+    description:
+      name: google_mobile_ads
+      sha256: "50549f6c945d7a445d53c04f34d025b1a1723fbd02719de9e67de432e2597f40"
+      url: "https://pub.dev"
+    source: hosted
+    version: "8.0.0"
   hooks:
     dependency: transitive
     description:

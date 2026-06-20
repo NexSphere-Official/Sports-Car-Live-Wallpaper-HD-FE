@@ -8,12 +8,17 @@ class SettingsState {
   final bool isClearingFavorites;
   final String version;
 
+  /// Whether to surface the UMP privacy-options entry (required in regulated
+  /// regions once consent info has been gathered).
+  final bool isPrivacyOptionsRequired;
+
   const SettingsState({
     required this.mode,
     required this.favoritesCount,
     required this.isClearingCache,
     required this.isClearingFavorites,
     required this.version,
+    required this.isPrivacyOptionsRequired,
   });
 
   factory SettingsState.initial({
@@ -24,6 +29,7 @@ class SettingsState {
     isClearingCache: false,
     isClearingFavorites: false,
     version: '',
+    isPrivacyOptionsRequired: false,
   );
 
   SettingsState copyWith({
@@ -32,11 +38,14 @@ class SettingsState {
     bool? isClearingCache,
     bool? isClearingFavorites,
     String? version,
+    bool? isPrivacyOptionsRequired,
   }) => SettingsState(
     mode: mode ?? this.mode,
     favoritesCount: favoritesCount ?? this.favoritesCount,
     isClearingCache: isClearingCache ?? this.isClearingCache,
     isClearingFavorites: isClearingFavorites ?? this.isClearingFavorites,
     version: version ?? this.version,
+    isPrivacyOptionsRequired:
+        isPrivacyOptionsRequired ?? this.isPrivacyOptionsRequired,
   );
 }
