@@ -13,6 +13,15 @@ import 'full_screen_ad_guard.dart';
 /// dismiss/failure, and show on foreground via [AppStateEventNotifier]. Shares
 /// the [FullScreenAdGuard] so it never overlaps an interstitial/rewarded ad.
 ///
+/// App-open is the one format that must stay preloaded — there is no moment of
+/// user intent to load against, only the instant they return to the app. The
+/// preload starts during the splash so launch's dead time is put to use, but
+/// the splash is never held for it and the ad is never drawn over it: a
+/// cold-start ad is shown once the app itself is on screen, and only if one was
+/// already in hand by then. A resume additionally requires a real absence
+/// ([AppOpenAdConfig.minBackgroundDuration]) rather than a momentary flick out
+/// to a system sheet.
+///
 /// [_enabled] gates all activity so it can be turned off the moment consent is
 /// revoked (and back on when re-granted) without waiting for a relaunch.
 class GoogleAppOpenAdManager implements AppOpenAdManager {
@@ -26,18 +35,36 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
   AppOpenAdConfig? _config;
   AppOpenAd? _ad;
   DateTime? _loadedAt;
-  DateTime? _loadStartedAt;
-  bool _suppressNextResume = false;
+  DateTime? _backgroundedAt;
+
+  /// One-shot resume suppression, with a deadline. Previously an unbounded
+  /// bool: if the action that set it never actually backgrounded the app (a
+  /// failed share/preview launch), it silently swallowed some unrelated resume
+  /// ad much later.
+  DateTime? _suppressResumeUntil;
+
   bool _listening = false;
   bool _enabled = false;
   bool _isLoading = false;
-  Completer<void>? _loadWaiter;
+
+  /// Until the cold-start decision has been made, foreground events are
+  /// ignored: the launch foreground itself would otherwise fire a resume ad
+  /// over the splash and consume the ad the cold-start path is waiting for.
+  /// Starts settled, so a mid-session start (consent granted late) serves
+  /// resume ads right away rather than waiting for a cold start that already
+  /// went by.
+  bool _coldStartSettled = true;
+
 
   @override
-  Future<Either<AdsFailure, Unit>> start(AppOpenAdConfig config) async {
+  Future<Either<AdsFailure, Unit>> start(
+    AppOpenAdConfig config, {
+    required bool expectColdStart,
+  }) async {
     try {
       _config = config;
       _enabled = true;
+      if (expectColdStart) _coldStartSettled = false;
       _loadAd();
       if (!_listening) {
         _listening = true;
@@ -59,52 +86,69 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
 
   @override
   Future<Either<AdsFailure, Unit>> suppressNextResume() async {
-    _suppressNextResume = true;
+    final config = _config;
+    _suppressResumeUntil = DateTime.now().add(
+      config?.suppressResumeWindow ?? const Duration(minutes: 5),
+    );
     return right(unit);
   }
 
   @override
   Future<Either<AdsFailure, bool>> showOnColdStart() async {
     final config = _config;
-    if (!_enabled || config == null || !config.onColdStart) return right(false);
-
-    // Wait for the in-flight preload only while one is actually loading, and
-    // only for the remaining load budget — never extend the splash otherwise.
-    if (!_isAvailable && _isLoading) {
-      final deadline =
-          (_loadStartedAt ?? DateTime.now()).add(config.loadTimeout);
-      final remaining = deadline.difference(DateTime.now());
-      if (remaining > Duration.zero) {
-        await (_loadWaiter ??= Completer<void>()).future.timeout(
-          remaining,
-          onTimeout: () {},
-        );
-      }
-    }
-
-    if (!_isAvailable) {
-      // Nothing ready — make sure a fresh ad is queued for later, but don't
-      // block the splash any further.
-      _loadAd();
+    _coldStartSettled = true;
+    if (!_enabled || config == null || !config.onColdStart) {
       return right(false);
     }
 
-    // Keep the ad over the splash: resolve only once it's dismissed so the
-    // caller can hand off to home afterwards.
+    // Never wait on a load here. The preload that started at launch either
+    // filled while the splash played or it didn't; if it didn't, the ad stays
+    // queued for the next resume rather than becoming a delay the user sits
+    // through.
+    if (!_isAvailable) {
+      if (!_isLoading) _loadAd();
+      return right(false);
+    }
+
     await _show();
     return right(true);
   }
 
   void _onAppStateChanged(AppState state) {
+    if (state == AppState.background) {
+      _backgroundedAt = DateTime.now();
+      return;
+    }
     if (state != AppState.foreground) return;
+
     final config = _config;
     if (!_enabled || config == null || !config.onResume) return;
 
+    // The launch foreground is not a resume — let showOnColdStart own it.
+    if (!_coldStartSettled) return;
+
     // One-shot suppression (e.g. returning from an external system screen).
-    if (_suppressNextResume) {
-      _suppressNextResume = false;
+    final suppressUntil = _suppressResumeUntil;
+    if (suppressUntil != null) {
+      _suppressResumeUntil = null;
+      if (DateTime.now().isBefore(suppressUntil)) return;
+    }
+
+    // Require a real absence. A share sheet, permission dialog or wallpaper
+    // preview that the user dismisses immediately is not a return to the app,
+    // and interrupting that with a full-screen ad is exactly the pattern
+    // AdMob's app-open policy warns against.
+    // A null timestamp means we never saw the matching background event, so the
+    // absence is unknown rather than short — fall through instead of dropping
+    // the placement on a missed event.
+    final backgroundedAt = _backgroundedAt;
+    _backgroundedAt = null;
+    if (backgroundedAt != null &&
+        DateTime.now().difference(backgroundedAt) <
+            config.minBackgroundDuration) {
       return;
     }
+
     if (_guard.isShowing) return;
 
     // Honour the cooldown against the last full-screen ad of ANY kind (shared
@@ -135,16 +179,15 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
     if (_isLoading || _isAvailable) return;
 
     _isLoading = true;
-    _loadStartedAt = DateTime.now();
 
-    // Reset loading state if the SDK callback never fires, so future loads
-    // aren't permanently blocked.
-    var settled = false;
+    // Frees the slot so a stalled SDK callback can't wedge loading for the rest
+    // of the session. The request itself is left running: if it lands late we
+    // still take the ad (see the _ad != null check below, which drops the
+    // duplicate if a second attempt filled first) rather than paying for a fill
+    // and binning it.
     final timer = Timer(config.loadTimeout, () {
-      if (settled) return;
-      settled = true;
+      if (!_isLoading) return;
       _isLoading = false;
-      _completeWaiter();
     });
 
     AppOpenAd.load(
@@ -153,35 +196,24 @@ class GoogleAppOpenAdManager implements AppOpenAdManager {
       adLoadCallback: AppOpenAdLoadCallback(
         onAdLoaded: (ad) {
           timer.cancel();
-          settled = true;
           _isLoading = false;
           // Disabled meanwhile, or we already hold an ad (late duplicate) →
           // discard rather than leak/show without consent.
           if (!_enabled || _ad != null) {
             ad.dispose();
-            _completeWaiter();
             return;
           }
           _ad = ad;
           _loadedAt = DateTime.now();
-          _completeWaiter();
         },
         onAdFailedToLoad: (error) {
           timer.cancel();
-          settled = true;
           _isLoading = false;
           _ad = null;
           _loadedAt = null;
-          _completeWaiter();
         },
       ),
     );
-  }
-
-  void _completeWaiter() {
-    final waiter = _loadWaiter;
-    if (waiter != null && !waiter.isCompleted) waiter.complete();
-    _loadWaiter = null;
   }
 
   void _disposeAd() {

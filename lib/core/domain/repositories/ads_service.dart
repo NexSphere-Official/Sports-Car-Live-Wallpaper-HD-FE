@@ -3,42 +3,34 @@ import 'package:dartz/dartz.dart';
 import '../failures/ads_failure.dart';
 
 /// Boundary over the Google Mobile Ads SDK.
+///
+/// Full-screen ads are loaded strictly on demand — at the moment the user's
+/// action calls for one — and never speculatively. Preloading ahead of intent
+/// filled far more requests than it ever displayed, which is what dragged the
+/// reported show rate down; the cost of loading late is a brief wait the
+/// calling flow already surfaces.
 abstract class AdsService {
   /// Initialize the underlying ads SDK. Safe to call once consent allows ad
   /// requests. Idempotent on success; a failed attempt can be retried.
   Future<Either<AdsFailure, Unit>> initialize();
 
-  /// Preload an interstitial so a later [showInterstitialIfReady] can display it
-  /// instantly. Idempotent — no-op when one is already loaded or loading.
-  Future<Either<AdsFailure, Unit>> preloadInterstitial(String adUnitId);
-
-  /// Load (using any preloaded/in-flight ad) and show an interstitial. Resolves
-  /// once dismissed.
+  /// Load and show an interstitial. Resolves once dismissed.
   ///
   /// Returns `right(unit)` whether the ad was shown OR intentionally skipped
-  /// (another full-screen ad is showing, within [cooldown], or load failed) —
-  /// callers proceed regardless. Used for user-initiated transitions where a
-  /// brief load wait is acceptable.
+  /// (another full-screen ad is showing, within [cooldown], or the load
+  /// failed) — callers proceed regardless.
   Future<Either<AdsFailure, Unit>> showInterstitial(
     String adUnitId, {
     Duration cooldown = Duration.zero,
   });
 
-  /// Show a preloaded interstitial ONLY if one is ready right now — never loads
-  /// on demand. Used at transition points (e.g. back navigation) where a late
-  /// pop would be disruptive. No-op (`right(unit)`) when none is ready.
-  Future<Either<AdsFailure, Unit>> showInterstitialIfReady(
-    String adUnitId, {
-    Duration cooldown = Duration.zero,
-  });
-
-  /// Preload a rewarded ad so a later [showRewarded] can display instantly.
-  /// Idempotent — no-op when one is already loaded or loading.
-  Future<Either<AdsFailure, Unit>> preloadRewarded(String adUnitId);
-
-  /// Show a rewarded ad — using a preloaded/in-flight one if available,
-  /// otherwise loading on demand. Resolves once dismissed with whether the
+  /// Load and show a rewarded ad. Resolves once dismissed with whether the
   /// reward was earned (`right(true)`) or not (`right(false)`); `left` on a
   /// load/show error.
   Future<Either<AdsFailure, bool>> showRewarded(String adUnitId);
+
+  /// Stop serving: any in-flight load is abandoned and a late arrival is
+  /// discarded rather than shown. Called when consent is withdrawn or ads are
+  /// switched off mid-session. [initialize] re-enables.
+  Future<Either<AdsFailure, Unit>> stop();
 }

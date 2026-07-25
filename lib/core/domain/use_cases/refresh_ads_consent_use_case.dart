@@ -4,6 +4,7 @@ import '../failures/ads_failure.dart';
 import '../repositories/ads_service.dart';
 import '../repositories/app_open_ad_manager.dart';
 import '../repositories/consent_manager.dart';
+import '../repositories/native_ad_cache.dart';
 import '../stores/ads/ads_store.dart';
 import '../stores/app_config/app_config_store.dart';
 
@@ -18,6 +19,7 @@ class RefreshAdsConsentUseCase {
   final AppOpenAdManager _appOpenAdManager;
   final AppConfigStore _appConfigStore;
   final AdsStore _adsStore;
+  final NativeAdCache _nativeAdCache;
 
   RefreshAdsConsentUseCase(
     this._consentManager,
@@ -25,6 +27,7 @@ class RefreshAdsConsentUseCase {
     this._appOpenAdManager,
     this._appConfigStore,
     this._adsStore,
+    this._nativeAdCache,
   );
 
   Future<Either<AdsFailure, bool>> execute() async {
@@ -34,8 +37,13 @@ class RefreshAdsConsentUseCase {
     final ads = _appConfigStore.config.ads;
     if (!ads.enabled || !canRequestAds) {
       _adsStore.setCanRequestAds(false);
-      // Consent gone (or ads disabled) → stop app-open and drop any cached ad.
+      // Consent gone (or ads disabled) → stop every format and drop anything
+      // already loaded. Previously only app-open was torn down, so a native ad
+      // already on screen and any full-screen load still in flight outlived
+      // the consent that permitted them.
       await _appOpenAdManager.stop();
+      await _adsService.stop();
+      _nativeAdCache.clear();
       return right(false);
     }
 
@@ -45,13 +53,19 @@ class RefreshAdsConsentUseCase {
       (failure) async {
         _adsStore.setCanRequestAds(false);
         await _appOpenAdManager.stop();
+        await _adsService.stop();
+        _nativeAdCache.clear();
         return left<AdsFailure, bool>(failure);
       },
       (_) async {
         _adsStore.setCanRequestAds(true);
         // Resume (or begin) app-open management now that ads can be requested.
         if (ads.appOpen.isUsable) {
-          await _appOpenAdManager.start(ads.appOpen);
+          // Mid-session: resume ads must work from the next foreground on.
+          await _appOpenAdManager.start(
+            ads.appOpen,
+            expectColdStart: false,
+          );
         } else {
           await _appOpenAdManager.stop();
         }

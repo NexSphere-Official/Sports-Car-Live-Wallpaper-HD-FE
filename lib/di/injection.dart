@@ -8,6 +8,7 @@ import '../core/data/repositories/flutter_cache_repository.dart';
 import '../core/data/repositories/full_screen_ad_guard.dart';
 import '../core/data/repositories/google_app_open_ad_manager.dart';
 import '../core/data/repositories/google_mobile_ads_service.dart';
+import '../core/data/repositories/google_native_ad_cache.dart';
 import '../core/data/repositories/platform_app_info_repository.dart';
 import '../core/data/repositories/http_wallpaper_repository.dart';
 import '../core/data/repositories/native_wallpaper_setter_repository.dart';
@@ -22,6 +23,7 @@ import '../core/domain/repositories/app_open_ad_manager.dart';
 import '../core/domain/repositories/app_info_repository.dart';
 import '../core/domain/repositories/cache_repository.dart';
 import '../core/domain/repositories/consent_manager.dart';
+import '../core/domain/repositories/native_ad_cache.dart';
 import '../core/domain/repositories/favorites_repository.dart';
 import '../core/domain/repositories/settings_repository.dart';
 import '../core/domain/repositories/wallpaper_repository.dart';
@@ -33,12 +35,9 @@ import '../core/domain/stores/theme/theme_store.dart';
 import '../core/domain/stores/unlock/session_unlock_store.dart';
 import '../core/domain/use_cases/gather_ads_consent_use_case.dart';
 import '../core/domain/use_cases/get_app_config_use_case.dart';
-import '../core/domain/use_cases/preload_rewarded_ad_use_case.dart';
-import '../core/domain/use_cases/preload_saved_interstitial_use_case.dart';
 import '../core/domain/use_cases/refresh_ads_consent_use_case.dart';
 import '../core/domain/use_cases/resolve_wallpaper_ad_slot_use_case.dart';
 import '../core/domain/use_cases/show_apply_interstitial_use_case.dart';
-import '../core/domain/use_cases/show_back_interstitial_use_case.dart';
 import '../core/domain/use_cases/show_cold_start_app_open_ad_use_case.dart';
 import '../core/domain/use_cases/suppress_next_app_open_ad_use_case.dart';
 import '../core/domain/use_cases/unlock_wallpaper_use_case.dart';
@@ -131,6 +130,12 @@ Future<void> init() async {
   getIt.registerLazySingleton<AppOpenAdManager>(
     () => GoogleAppOpenAdManager(getIt()),
   );
+  // One instance behind two views: the feed needs slot lookup, the domain only
+  // needs to be able to release everything when consent changes.
+  getIt.registerLazySingleton(() => GoogleNativeAdCache());
+  getIt.registerLazySingleton<NativeAdCache>(
+    () => getIt<GoogleNativeAdCache>(),
+  );
   getIt.registerLazySingleton<AdPolicyRepository>(
     () => SharedPrefsAdPolicyRepository(getIt()),
   );
@@ -142,7 +147,14 @@ Future<void> init() async {
   );
   getIt.registerSingleton(ShowColdStartAppOpenAdUseCase(getIt()));
   getIt.registerSingleton(
-    RefreshAdsConsentUseCase(getIt(), getIt(), getIt(), getIt(), getIt()),
+    RefreshAdsConsentUseCase(
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+      getIt(),
+    ),
   );
   getIt.registerSingleton(SuppressNextAppOpenAdUseCase(getIt()));
   getIt.registerSingleton(
@@ -152,16 +164,7 @@ Future<void> init() async {
     UnlockWallpaperUseCase(getIt(), getIt(), getIt(), getIt()),
   );
   getIt.registerSingleton(
-    PreloadRewardedAdUseCase(getIt(), getIt(), getIt()),
-  );
-  getIt.registerSingleton(
     ShowApplyInterstitialUseCase(getIt(), getIt(), getIt()),
-  );
-  getIt.registerSingleton(
-    ShowBackInterstitialUseCase(getIt(), getIt(), getIt()),
-  );
-  getIt.registerSingleton(
-    PreloadSavedInterstitialUseCase(getIt(), getIt(), getIt()),
   );
   getIt.registerSingleton(GetWallpapersUseCase(getIt(), getIt()));
   getIt.registerSingleton(GetWallpaperUseCase(getIt(), getIt()));
@@ -204,7 +207,10 @@ Future<void> init() async {
         HomeCubit(params, getIt(), getIt(), getIt(), getIt(), getIt(), getIt()),
   );
   getIt.registerFactoryParam<HomePage, HomeInitialParams, void>(
-    (params, _) => HomePage(cubit: getIt(param1: params)),
+    (params, _) => HomePage(
+      cubit: getIt(param1: params),
+      nativeAdCache: getIt<GoogleNativeAdCache>(),
+    ),
   );
 
   // --- Feature: wallpaper_detail ---
@@ -216,7 +222,6 @@ Future<void> init() async {
   >(
     (params, _) => WallpaperDetailCubit(
       params,
-      getIt(),
       getIt(),
       getIt(),
       getIt(),
@@ -237,8 +242,6 @@ Future<void> init() async {
   getIt.registerFactoryParam<FavoritesCubit, FavoritesInitialParams, void>(
     (params, _) => FavoritesCubit(
       params,
-      getIt(),
-      getIt(),
       getIt(),
       getIt(),
       getIt(),

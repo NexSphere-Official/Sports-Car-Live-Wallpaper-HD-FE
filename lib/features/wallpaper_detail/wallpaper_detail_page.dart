@@ -101,8 +101,7 @@ class _WallpaperDetailPageState extends State<WallpaperDetailPage>
                                   ? cubit.onTapUnlock
                                   : cubit.onTapApply,
                               isLocked: state.isLocked,
-                              isBusy: state.isSettingWallpaper ||
-                                  state.isPreparingAd,
+                              isBusy: state.isBusy,
                             ),
                           ],
                         ),

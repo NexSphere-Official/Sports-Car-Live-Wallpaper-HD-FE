@@ -34,6 +34,8 @@ class AdsConfigJson {
   ) {
     if (json == null) return defaults;
     final resumeCooldown = _int(json['resume_cooldown_seconds']);
+    final minBackground = _int(json['min_background_seconds']);
+    final suppressWindow = _int(json['suppress_resume_window_seconds']);
     final loadTimeout = _int(json['load_timeout_seconds']);
     return defaults.copyWith(
       enabled: _bool(json['enabled']),
@@ -42,6 +44,10 @@ class AdsConfigJson {
       onResume: _bool(json['on_resume']),
       resumeCooldown:
           resumeCooldown == null ? null : Duration(seconds: resumeCooldown),
+      minBackgroundDuration:
+          minBackground == null ? null : Duration(seconds: minBackground),
+      suppressResumeWindow:
+          suppressWindow == null ? null : Duration(seconds: suppressWindow),
       loadTimeout: loadTimeout == null ? null : Duration(seconds: loadTimeout),
     );
   }
@@ -52,10 +58,11 @@ class AdsConfigJson {
   ) {
     if (json == null) return defaults;
     final cooldown = _int(json['cooldown_seconds']);
+    // `on_back_from_saved` is intentionally not read — that placement was
+    // removed. A stale key in Remote Config is simply ignored.
     return defaults.copyWith(
       enabled: _bool(json['enabled']),
       adUnitId: _str(json['ad_unit_id']),
-      onBackFromSaved: _bool(json['on_back_from_saved']),
       cooldown: cooldown == null ? null : Duration(seconds: cooldown),
     );
   }

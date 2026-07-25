@@ -112,6 +112,17 @@ class AppOpenAdConfig extends Equatable {
   /// Minimum gap between two resume app-open ads.
   final Duration resumeCooldown;
 
+  /// How long the app must actually have been in the background before a
+  /// return counts as a resume. Filters momentary trips out to a share sheet,
+  /// permission dialog or wallpaper preview, which a user experiences as never
+  /// having left the app at all.
+  final Duration minBackgroundDuration;
+
+  /// How long an explicit [AppOpenAdManager.suppressNextResume] request stays
+  /// armed. Bounded so a suppression whose expected background trip never
+  /// happened can't swallow an unrelated resume later on.
+  final Duration suppressResumeWindow;
+
   /// How long to wait for an app-open ad to load before giving up so launch is
   /// never blocked.
   final Duration loadTimeout;
@@ -122,6 +133,8 @@ class AppOpenAdConfig extends Equatable {
     required this.onColdStart,
     required this.onResume,
     required this.resumeCooldown,
+    required this.minBackgroundDuration,
+    required this.suppressResumeWindow,
     required this.loadTimeout,
   });
 
@@ -131,6 +144,8 @@ class AppOpenAdConfig extends Equatable {
     onColdStart: true,
     onResume: true,
     resumeCooldown: Duration(seconds: 30),
+    minBackgroundDuration: Duration(seconds: 10),
+    suppressResumeWindow: Duration(minutes: 5),
     loadTimeout: Duration(seconds: 8),
   );
 
@@ -142,6 +157,8 @@ class AppOpenAdConfig extends Equatable {
     bool? onColdStart,
     bool? onResume,
     Duration? resumeCooldown,
+    Duration? minBackgroundDuration,
+    Duration? suppressResumeWindow,
     Duration? loadTimeout,
   }) => AppOpenAdConfig(
     enabled: enabled ?? this.enabled,
@@ -149,6 +166,9 @@ class AppOpenAdConfig extends Equatable {
     onColdStart: onColdStart ?? this.onColdStart,
     onResume: onResume ?? this.onResume,
     resumeCooldown: resumeCooldown ?? this.resumeCooldown,
+    minBackgroundDuration:
+        minBackgroundDuration ?? this.minBackgroundDuration,
+    suppressResumeWindow: suppressResumeWindow ?? this.suppressResumeWindow,
     loadTimeout: loadTimeout ?? this.loadTimeout,
   );
 
@@ -159,16 +179,20 @@ class AppOpenAdConfig extends Equatable {
     onColdStart,
     onResume,
     resumeCooldown,
+    minBackgroundDuration,
+    suppressResumeWindow,
     loadTimeout,
   ];
 }
 
+/// Interstitials are shown at exactly one point: applying a wallpaper whose
+/// assigned slot is [AdSlotType.interstitial]. The old "back from Saved"
+/// placement was removed — it could only work by preloading on entry to a
+/// screen most visitors left by tapping through rather than backing out, so it
+/// filled roughly fourteen requests for every ad it managed to display.
 class InterstitialAdConfig extends Equatable {
   final bool enabled;
   final String adUnitId;
-
-  /// Show an interstitial when the user navigates back from the Saved page.
-  final bool onBackFromSaved;
 
   /// Minimum gap between any two full-screen ads (throttles stacking).
   final Duration cooldown;
@@ -176,14 +200,12 @@ class InterstitialAdConfig extends Equatable {
   const InterstitialAdConfig({
     required this.enabled,
     required this.adUnitId,
-    required this.onBackFromSaved,
     required this.cooldown,
   });
 
   factory InterstitialAdConfig.empty() => const InterstitialAdConfig(
     enabled: true,
     adUnitId: 'ca-app-pub-3891353847321850/4319173471',
-    onBackFromSaved: true,
     cooldown: Duration(seconds: 15),
   );
 
@@ -192,17 +214,15 @@ class InterstitialAdConfig extends Equatable {
   InterstitialAdConfig copyWith({
     bool? enabled,
     String? adUnitId,
-    bool? onBackFromSaved,
     Duration? cooldown,
   }) => InterstitialAdConfig(
     enabled: enabled ?? this.enabled,
     adUnitId: adUnitId ?? this.adUnitId,
-    onBackFromSaved: onBackFromSaved ?? this.onBackFromSaved,
     cooldown: cooldown ?? this.cooldown,
   );
 
   @override
-  List<Object?> get props => [enabled, adUnitId, onBackFromSaved, cooldown];
+  List<Object?> get props => [enabled, adUnitId, cooldown];
 }
 
 class RewardedAdConfig extends Equatable {

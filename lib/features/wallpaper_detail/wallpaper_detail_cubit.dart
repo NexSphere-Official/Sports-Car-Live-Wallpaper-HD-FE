@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/domain/models/wallpaper_surface.dart';
 import '../../core/domain/use_cases/is_live_wallpaper_active_use_case.dart';
-import '../../core/domain/use_cases/preload_rewarded_ad_use_case.dart';
 import '../../core/domain/use_cases/resolve_wallpaper_ad_slot_use_case.dart';
 import '../../core/domain/use_cases/set_wallpaper_use_case.dart';
 import '../../core/domain/use_cases/show_apply_interstitial_use_case.dart';
@@ -17,7 +16,6 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
   final ResolveWallpaperAdSlotUseCase _resolveWallpaperAdSlotUseCase;
   final UnlockWallpaperUseCase _unlockWallpaperUseCase;
   final ShowApplyInterstitialUseCase _showApplyInterstitialUseCase;
-  final PreloadRewardedAdUseCase _preloadRewardedAdUseCase;
   final IsLiveWallpaperActiveUseCase _isLiveWallpaperActiveUseCase;
   final SuppressNextAppOpenAdUseCase _suppressNextAppOpenAdUseCase;
   final WallpaperDetailNavigator navigator;
@@ -28,7 +26,6 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
     this._resolveWallpaperAdSlotUseCase,
     this._unlockWallpaperUseCase,
     this._showApplyInterstitialUseCase,
-    this._preloadRewardedAdUseCase,
     this._isLiveWallpaperActiveUseCase,
     this._suppressNextAppOpenAdUseCase,
     this.navigator,
@@ -42,17 +39,22 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
     );
     // On failure, leave the default open gate so the wallpaper stays usable.
     final gate = result.fold((_) => null, (gate) => gate);
-    if (gate == null) return;
-    emit(state.copyWith(adGate: gate));
-
-    // Preload the rewarded ad so tapping "Unlock" shows it instantly.
-    if (gate.isLocked) await _preloadRewardedAdUseCase.execute();
+    emit(
+      state.copyWith(
+        adGate: gate ?? state.adGate,
+        isResolvingGate: false,
+      ),
+    );
+    // No rewarded preload here, deliberately. Opening a locked wallpaper is
+    // not intent to watch an ad — most opens never reach "Unlock", so
+    // preloading here bought roughly eight ads for every one displayed. The
+    // load now happens on the tap, behind [isPreparingAd].
   }
 
   /// "Unlock" action for locked (rewarded) wallpapers: watch a rewarded ad,
   /// then — once earned — apply immediately.
   Future<void> onTapUnlock() async {
-    if (state.isPreparingAd || state.isSettingWallpaper) return;
+    if (state.isBusy) return;
 
     // The "Watch to unlock" button is itself the opt-in/value-exchange
     // disclosure, so go straight to the rewarded ad.
@@ -81,7 +83,10 @@ class WallpaperDetailCubit extends Cubit<WallpaperDetailState> {
   /// "Set Wallpaper" action for unlocked/interstitial wallpapers. Interstitial
   /// wallpapers show an interstitial first; the apply proceeds regardless.
   Future<void> onTapApply() async {
-    if (state.isPreparingAd || state.isSettingWallpaper) return;
+    // Includes isResolvingGate: until the slot is known the gate reads "open",
+    // so acting on it would apply the wallpaper for free and skip the ad the
+    // pattern had assigned it.
+    if (state.isBusy) return;
 
     if (state.adGate.requiresInterstitial) {
       emit(state.copyWith(isPreparingAd: true));

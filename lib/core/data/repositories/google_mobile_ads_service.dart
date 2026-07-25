@@ -7,30 +7,41 @@ import '../../domain/failures/ads_failure.dart';
 import '../../domain/repositories/ads_service.dart';
 import 'full_screen_ad_guard.dart';
 
-/// [AdsService] backed by the Google Mobile Ads SDK. Full-screen ads are loaded
-/// (with a timeout) and cached for instant display. The shared
-/// [FullScreenAdGuard] prevents two full-screen ads (incl. app-open) from
-/// overlapping and powers the cooldown.
+/// [AdsService] backed by the Google Mobile Ads SDK.
+///
+/// Full-screen ads are loaded on demand and shown immediately — nothing is
+/// cached between placements. That removes the two things that used to burn
+/// matched requests without ever producing an impression: ads preloaded for an
+/// action the user never took, and cached ads that went stale before anything
+/// tried to show them. The trade is a load wait at the point of use, which
+/// callers surface with their own busy state.
+///
+/// The shared [FullScreenAdGuard] prevents two full-screen ads (incl. app-open)
+/// from overlapping and powers the cooldown.
 class GoogleMobileAdsService implements AdsService {
   GoogleMobileAdsService(this._guard);
 
   final FullScreenAdGuard _guard;
 
-  /// Upper bound on a full-screen ad load so flows never hang on a stalled
-  /// request, and so a preload can't get stuck. A late load is discarded.
+  /// Upper bound on a full-screen ad load so a flow never hangs on a stalled
+  /// request. Deliberately generous: this now runs while the user waits, but
+  /// cutting it short only converts a slow fill into a discarded one.
   static const _loadTimeout = Duration(seconds: 12);
 
   Future<Either<AdsFailure, Unit>>? _initialization;
 
-  InterstitialAd? _preloadedInterstitial;
-  Completer<void>? _interstitialPreload;
-
-  RewardedAd? _preloadedRewarded;
-  Completer<void>? _rewardedPreload;
+  /// False once [stop] runs, so an in-flight load can't surface an ad after
+  /// consent was withdrawn.
+  bool _enabled = false;
 
   @override
-  Future<Either<AdsFailure, Unit>> initialize() {
-    return _initialization ??= _initialize();
+  Future<Either<AdsFailure, Unit>> initialize() async {
+    final result = await (_initialization ??= _initialize());
+    // Re-arm serving here, not inside _initialize: SDK initialization is
+    // memoized, so a re-grant of consent after [stop] returns the cached
+    // future and would otherwise never turn requesting back on.
+    if (result.isRight()) _enabled = true;
+    return result;
   }
 
   Future<Either<AdsFailure, Unit>> _initialize() async {
@@ -43,20 +54,13 @@ class GoogleMobileAdsService implements AdsService {
     }
   }
 
-  // --- Interstitial ---------------------------------------------------------
-
   @override
-  Future<Either<AdsFailure, Unit>> preloadInterstitial(String adUnitId) async {
-    if (_preloadedInterstitial != null || _interstitialPreload != null) {
-      return right(unit);
-    }
-    final completer = Completer<void>();
-    _interstitialPreload = completer;
-    _preloadedInterstitial = await _loadInterstitialOnce(adUnitId);
-    _interstitialPreload = null;
-    if (!completer.isCompleted) completer.complete();
+  Future<Either<AdsFailure, Unit>> stop() async {
+    _enabled = false;
     return right(unit);
   }
+
+  // --- Interstitial ---------------------------------------------------------
 
   @override
   Future<Either<AdsFailure, Unit>> showInterstitial(
@@ -65,34 +69,15 @@ class GoogleMobileAdsService implements AdsService {
   }) async {
     if (_skipFullScreen(cooldown)) return right(unit);
 
-    // Reuse an in-flight preload rather than starting a second load.
-    final inFlight = _interstitialPreload;
-    if (_preloadedInterstitial == null && inFlight != null) {
-      await inFlight.future;
-    }
-
-    var ad = _preloadedInterstitial;
-    _preloadedInterstitial = null;
-    ad ??= await _loadInterstitialOnce(adUnitId);
+    final ad = await _loadInterstitialOnce(adUnitId);
     if (ad == null) return right(unit); // load failed/timed out — proceed
 
-    // Re-check the guard now that loading is done (another ad may have appeared).
+    // Re-check now that loading is done: another placement may have taken the
+    // slot while we waited.
     if (_skipFullScreen(cooldown)) {
       ad.dispose();
       return right(unit);
     }
-    return _showInterstitialAd(ad);
-  }
-
-  @override
-  Future<Either<AdsFailure, Unit>> showInterstitialIfReady(
-    String adUnitId, {
-    Duration cooldown = Duration.zero,
-  }) async {
-    if (_skipFullScreen(cooldown)) return right(unit);
-    final ad = _preloadedInterstitial;
-    if (ad == null) return right(unit); // not ready — skip, no late pop
-    _preloadedInterstitial = null;
     return _showInterstitialAd(ad);
   }
 
@@ -133,9 +118,12 @@ class GoogleMobileAdsService implements AdsService {
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
+          // Arrived after we stopped waiting, or consent was withdrawn while
+          // it was in flight — discard rather than show.
           timer.cancel();
-          if (completer.isCompleted) {
-            ad.dispose(); // arrived after timeout — discard
+          if (completer.isCompleted || !_enabled) {
+            ad.dispose();
+            if (!completer.isCompleted) completer.complete(null);
             return;
           }
           completer.complete(ad);
@@ -152,32 +140,11 @@ class GoogleMobileAdsService implements AdsService {
   // --- Rewarded -------------------------------------------------------------
 
   @override
-  Future<Either<AdsFailure, Unit>> preloadRewarded(String adUnitId) async {
-    if (_preloadedRewarded != null || _rewardedPreload != null) {
-      return right(unit);
-    }
-    final completer = Completer<void>();
-    _rewardedPreload = completer;
-    _preloadedRewarded = await _loadRewardedOnce(adUnitId);
-    _rewardedPreload = null;
-    if (!completer.isCompleted) completer.complete();
-    return right(unit);
-  }
-
-  @override
   Future<Either<AdsFailure, bool>> showRewarded(String adUnitId) async {
     // Don't stack on another full-screen ad; treat as "not earned".
     if (_guard.isShowing) return right(false);
 
-    // Reuse an in-flight preload rather than starting a second load.
-    final inFlight = _rewardedPreload;
-    if (_preloadedRewarded == null && inFlight != null) {
-      await inFlight.future;
-    }
-
-    var ad = _preloadedRewarded;
-    _preloadedRewarded = null;
-    ad ??= await _loadRewardedOnce(adUnitId);
+    final ad = await _loadRewardedOnce(adUnitId);
     if (ad == null) {
       return left(const AdsFailure.unknown('rewarded ad unavailable'));
     }
@@ -229,8 +196,9 @@ class GoogleMobileAdsService implements AdsService {
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
           timer.cancel();
-          if (completer.isCompleted) {
-            ad.dispose(); // arrived after timeout — discard
+          if (completer.isCompleted || !_enabled) {
+            ad.dispose();
+            if (!completer.isCompleted) completer.complete(null);
             return;
           }
           completer.complete(ad);
@@ -244,8 +212,8 @@ class GoogleMobileAdsService implements AdsService {
     return completer.future;
   }
 
-  /// Whether a full-screen ad should be skipped: another is showing, or we're
-  /// within the cooldown window.
+  /// Whether a full-screen ad should be skipped: serving is off, another is
+  /// showing, or we're within the cooldown window.
   bool _skipFullScreen(Duration cooldown) =>
-      _guard.isShowing || _guard.withinCooldown(cooldown);
+      !_enabled || _guard.isShowing || _guard.withinCooldown(cooldown);
 }

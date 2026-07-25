@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/domain/use_cases/gather_ads_consent_use_case.dart';
 import '../../core/domain/use_cases/get_app_config_use_case.dart';
@@ -65,12 +67,15 @@ class SplashCubit extends Cubit<SplashState> {
     _set(1.0, 'READY');
     await Future.delayed(const Duration(milliseconds: 450));
 
-    // Show the cold-start app-open ad (over the splash) before handing off to
-    // home. No-op if ads aren't ready or none loaded within the budget.
-    if (adsReady) await _showColdStartAppOpenAdUseCase.execute();
-
     if (isClosed) return;
     navigator.replaceWithHome(const HomeInitialParams());
+
+    // Hand off to home FIRST, then show the cold-start app-open ad over it.
+    // The ad has been loading since consent was gathered, but the splash is
+    // neither delayed for it nor used as its backdrop — it appears over the
+    // app proper, and only if it managed to load in time. Fire-and-forget:
+    // nothing here waits on the ad.
+    if (adsReady) unawaited(_showColdStartAppOpenAdUseCase.execute());
   }
 
   void _set(double progress, String label) {

@@ -1,8 +1,10 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/data/repositories/google_native_ad_cache.dart';
 import '../../core/domain/models/wallpaper.dart';
 import '../../core/domain/models/wallpaper_type.dart';
 import 'home_cubit.dart';
@@ -18,7 +20,15 @@ import '../../widgets/wallpaper_tile.dart';
 class HomePage extends StatefulWidget {
   final HomeCubit cubit;
 
-  const HomePage({super.key, required this.cubit});
+  /// Session-scoped store of loaded native ads, keyed by feed slot, so a slot
+  /// scrolled out of view and back doesn't buy a second ad.
+  final GoogleNativeAdCache nativeAdCache;
+
+  const HomePage({
+    super.key,
+    required this.cubit,
+    required this.nativeAdCache,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -64,6 +74,12 @@ class _HomePageState extends State<HomePage> {
               child: CustomScrollView(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
+                // Build one ad-card height (350px) ahead of the viewport rather
+                // than the 250px default: enough that a slot's request starts
+                // just before it scrolls in, without reaching so far ahead that
+                // we pay for slots the user never arrives at. Requests for
+                // slots that are reached later are free — the cache keeps them.
+                scrollCacheExtent: const ScrollCacheExtent.pixels(350),
                 slivers: [
                   SliverToBoxAdapter(
                     child: _HeaderBlock(
@@ -192,7 +208,11 @@ class _HomePageState extends State<HomePage> {
         return Padding(
           key: ValueKey('native-${row.slot}'),
           padding: const EdgeInsets.only(bottom: 14),
-          child: NativeAdTile(adUnitId: row.adUnitId),
+          child: NativeAdTile(
+            adUnitId: row.adUnitId,
+            slot: row.slot,
+            cache: widget.nativeAdCache,
+          ),
         );
     }
   }

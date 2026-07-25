@@ -1,26 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../core/data/repositories/google_native_ad_cache.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
 /// A full-width native ad card rendered with the SDK's medium template, themed
-/// to match the app. Loads its own [NativeAd] once, reserves its height with a
-/// placeholder while loading (so loading in doesn't shift the feed), and
-/// collapses on failure.
+/// to match the app. Reserves its height with a placeholder while loading (so
+/// loading in doesn't shift the feed), and collapses on failure.
 ///
 /// ARCHITECTURE NOTE: unlike the full-screen formats (interstitial/rewarded/
-/// app-open) which live behind [AdsService], native ads are inherently
-/// widget-coupled — a [NativeAd] is bound 1:1 to the [AdWidget] that renders it
-/// and must share its lifecycle (load when mounted, dispose when unmounted, and
-/// styled from the inherited theme). Routing that through a data-layer service
-/// would split one resource's lifecycle across layers for no real gain, so the
-/// load/dispose lifecycle is deliberately owned here. The ad unit id and the
-/// enable/consent gating still come from config/[AdsStore] via the cubit.
+/// app-open) which live behind [AdsService], a [NativeAd] is bound 1:1 to the
+/// [AdWidget] that renders it. What this widget does NOT own any more is the
+/// ad's lifetime: it renders whatever [NativeAdCache] holds for its [slot] and
+/// asks the cache to fill an empty one. Owning the ad here meant scrolling a
+/// slot out of the viewport's cache extent destroyed it and scrolling back
+/// bought a replacement — several paid-for requests per impression. The ad unit
+/// id and the enable/consent gating still come from config/[AdsStore] via the
+/// cubit.
 class NativeAdTile extends StatefulWidget {
   final String adUnitId;
 
-  const NativeAdTile({super.key, required this.adUnitId});
+  /// Index of this ad's position in the feed. Identifies the cache entry, so
+  /// the same slot keeps the same ad across scrolls and rebuilds.
+  final int slot;
+
+  final GoogleNativeAdCache cache;
+
+  const NativeAdTile({
+    super.key,
+    required this.adUnitId,
+    required this.slot,
+    required this.cache,
+  });
 
   @override
   State<NativeAdTile> createState() => _NativeAdTileState();
@@ -28,50 +40,31 @@ class NativeAdTile extends StatefulWidget {
 
 class _NativeAdTileState extends State<NativeAdTile> {
   /// Medium template bounds are 320–400 logical px; keep within that range.
+  /// The feed's scroll cache extent is aligned to this so a slot is built
+  /// roughly one card-height before it scrolls in.
   static const _height = 350.0;
   static const _maxWidth = 400.0;
 
-  NativeAd? _nativeAd;
-  bool _isLoaded = false;
-  bool _failed = false;
-  bool _requested = false;
+  NativeAdSlot? _slot;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Load once, here (not initState) — the template style reads the inherited
+    // Resolved here (not initState) — the template style reads the inherited
     // theme, which isn't available until dependencies are resolved.
-    if (_requested) return;
-    _requested = true;
-    _loadAd();
+    if (_slot != null) return;
+    final slot = widget.cache.slotFor(widget.slot)
+      ..attach()
+      ..addListener(_onSlotChanged);
+    _slot = slot;
+    slot.ensureLoaded(
+      adUnitId: widget.adUnitId,
+      style: _templateStyle(context),
+    );
   }
 
-  void _loadAd() {
-    final ad = NativeAd(
-      adUnitId: widget.adUnitId,
-      request: const AdRequest(),
-      nativeTemplateStyle: _templateStyle(context),
-      listener: NativeAdListener(
-        onAdLoaded: (_) {
-          if (mounted) {
-            setState(() => _isLoaded = true);
-          } else {
-            _nativeAd?.dispose();
-          }
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-          if (mounted) {
-            setState(() {
-              _nativeAd = null;
-              _failed = true;
-            });
-          }
-        },
-      ),
-    );
-    _nativeAd = ad;
-    ad.load();
+  void _onSlotChanged() {
+    if (mounted) setState(() {});
   }
 
   NativeTemplateStyle _templateStyle(BuildContext context) {
@@ -105,21 +98,24 @@ class _NativeAdTileState extends State<NativeAdTile> {
 
   @override
   void dispose() {
-    _nativeAd?.dispose();
+    // Release our claim, but leave the ad in the cache for the next time this
+    // slot scrolls back into view.
+    _slot
+      ?..removeListener(_onSlotChanged)
+      ..detach();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final slot = _slot;
     // Collapse only when the load failed — while loading we keep the reserved
     // height so the ad doesn't push the feed when it appears.
-    if (_failed) return const SizedBox.shrink();
+    if (slot == null || slot.hasFailed) return const SizedBox.shrink();
 
-    final ad = _nativeAd;
+    final ad = slot.ad;
     final palette = context.palette;
-    // While loading, hold the reserved height with a themed placeholder box so
-    // the ad doesn't push the feed when it appears.
-    final content = (_isLoaded && ad != null)
+    final content = (slot.isLoaded && ad != null)
         ? AdWidget(ad: ad)
         : DecoratedBox(
             decoration: BoxDecoration(

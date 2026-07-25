@@ -47,6 +47,17 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3891353847321850~6809928842" />
+        <!-- Both recommended by AdMob when running mediation. Initialization
+             moves off the main thread, and ad loading starts without waiting
+             for every adapter to finish initializing — which is what the
+             multi-second load latencies on the full-screen formats were
+             largely made of. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true" />
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+            android:value="true" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

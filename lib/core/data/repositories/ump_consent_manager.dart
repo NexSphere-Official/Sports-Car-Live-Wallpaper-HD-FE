@@ -10,11 +10,6 @@ import '../../domain/repositories/consent_manager.dart';
 /// requestConsentInfoUpdate → loadAndShowConsentFormIfRequired → canRequestAds.
 /// See https://developers.google.com/admob/flutter/privacy.
 class UmpConsentManager implements ConsentManager {
-  /// Upper bound on a consent-form wait so a stalled UMP/plugin callback can
-  /// never hang the caller. On timeout we proceed with whatever consent state
-  /// is currently cached.
-  static const _formTimeout = Duration(seconds: 10);
-
   @override
   Future<Either<ConsentFailure, bool>> gatherConsent() async {
     try {
@@ -37,8 +32,13 @@ class UmpConsentManager implements ConsentManager {
         },
       );
 
-      // Continue regardless if the callbacks never fire within the window.
-      await completer.future.timeout(_formTimeout, onTimeout: () {});
+      // NO TIMEOUT HERE, deliberately. This future resolves only once the user
+      // has actually finished with the consent form, however long they take.
+      // Cutting it short used to read canRequestAds() while the form was still
+      // on screen, latch "false" for the whole session, and silently serve a
+      // consenting user no ads at all. Callers that must not block (launch)
+      // apply their own deadline and re-check when this resolves.
+      await completer.future;
       return right(await ConsentInformation.instance.canRequestAds());
     } catch (ex) {
       return left(ConsentFailure.unknown(ex));
@@ -72,8 +72,11 @@ class UmpConsentManager implements ConsentManager {
       ConsentForm.showPrivacyOptionsForm((FormError? error) {
         if (!completer.isCompleted) completer.complete();
       });
-      // Don't wait forever if the form callback never fires.
-      await completer.future.timeout(_formTimeout, onTimeout: () {});
+      // Also untimed: the caller re-reads consent as soon as this resolves, so
+      // returning while the form is still up would refresh against the state
+      // the user is in the middle of changing. The form is on screen by the
+      // user's own action, so the callback arrives when they dismiss it.
+      await completer.future;
       return right(unit);
     } catch (ex) {
       return left(ConsentFailure.unknown(ex));
